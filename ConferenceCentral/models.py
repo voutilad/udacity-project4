@@ -91,7 +91,7 @@ class ConferenceForms(messages.Message):
 class Session(ndb.Model):
     """Session -- Session object"""
     name = ndb.StringProperty(required=True)
-    highlights = nbd.StringProperty(repeated=True)
+    highlights = ndb.StringProperty(repeated=True)
     speaker = ndb.StringProperty()
     duration = ndb.IntegerProperty()
     typeOfSession = ndb.StringProperty()
@@ -100,13 +100,17 @@ class Session(ndb.Model):
 
 class SessionForm(messages.Message):
     """SessionForm -- RPC message containing details about a Session"""
-    name = messages.StringField(required=True)
-    highlights = messages.StringField(repeated=True)
-    speaker = messages.StringField()
-    duration = messages.IntegerField()
-    typeOfSession = messages.StringField()
-    date = messages.StringField()
-    startTime = messages.StringField()
+    name = messages.StringField(1)
+    highlights = messages.StringField(2, repeated=True)
+    speaker = messages.StringField(3)
+    duration = messages.IntegerField(4)
+    typeOfSession = messages.StringField(5)
+    date = messages.StringField(6)
+    startTime = messages.StringField(7)
+
+class SessionForms(messages.Message):
+    """SessionForms -- multiple SessionForm's"""
+    items = messages.MessageField(SessionForm, 1, repeated=True)
 
 
 class TeeShirtSize(messages.Enum):

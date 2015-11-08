@@ -31,6 +31,9 @@ from models import ConferenceForm
 from models import ConferenceForms
 from models import ConferenceQueryForm
 from models import ConferenceQueryForms
+from models import Session
+from models import SessionForm
+from models import SessionForms
 from models import TeeShirtSize
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
@@ -89,11 +92,15 @@ class ConferenceApi(remote.Service):
     """Conference API v0.1"""
 
     # - - - Session objects - - - - - - - - - - - - - - - - -
+    @endpoints.method(CONF_GET_REQUEST, SessionForms,
+                      path='conference/{websafeConferenceKey}/sessions',
+                      http_method='GET', name='getConferenceSessions')
     def getConferenceSessions(self, request):
         """Given a conference, return all sessions
             Input: websafeConferenceKey
         """
-        pass
+        return SessionForms(items=[SessionForm(name='Hello World')])
+
 
     def getConferenceSessionsByType(self, request):
         """Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)"""
