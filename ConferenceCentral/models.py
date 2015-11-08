@@ -94,9 +94,10 @@ class Session(ndb.Model):
     highlights = ndb.StringProperty(repeated=True)
     speaker = ndb.StringProperty()
     duration = ndb.IntegerProperty()
-    typeOfSession = ndb.StringProperty()
+    typeOfSession = ndb.StringProperty() #EnumField: SessionType
     date = ndb.DateProperty()
     startTime = ndb.TimeProperty()
+    conferenceKey = ndb.StringProperty()
 
 class SessionForm(messages.Message):
     """SessionForm -- RPC message containing details about a Session"""
@@ -104,14 +105,20 @@ class SessionForm(messages.Message):
     highlights = messages.StringField(2, repeated=True)
     speaker = messages.StringField(3)
     duration = messages.IntegerField(4)
-    typeOfSession = messages.StringField(5)
+    typeOfSession = messages.EnumField('SessionType', 5)
     date = messages.StringField(6)
     startTime = messages.StringField(7)
+    websafeConfKey = messages.StringField(8)
 
 class SessionForms(messages.Message):
     """SessionForms -- multiple SessionForm's"""
     items = messages.MessageField(SessionForm, 1, repeated=True)
 
+class SessionType(messages.Enum):
+    """SessionType -- type of session being held at conference"""
+    LECTURE = 1
+    KEYNOTE = 2
+    WORKSHOP = 3
 
 class TeeShirtSize(messages.Enum):
     """TeeShirtSize -- t-shirt size enumeration value"""

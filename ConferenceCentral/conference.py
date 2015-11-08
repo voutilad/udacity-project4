@@ -32,6 +32,7 @@ from models import ConferenceForms
 from models import ConferenceQueryForm
 from models import ConferenceQueryForms
 from models import Session
+from models import SessionType
 from models import SessionForm
 from models import SessionForms
 from models import TeeShirtSize
@@ -48,11 +49,16 @@ ANNOUNCEMENT_TPL = ('Last chance to attend! The following conferences '
                     'are nearly sold out: %s')
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-DEFAULTS = {
+CONF_DEFAULTS = {
     "city": "Default City",
     "maxAttendees": 0,
     "seatsAvailable": 0,
     "topics": ["Default", "Topic"],
+}
+
+SESSION_DEFAULTS = {
+    'duration': 60,
+    'typeOfSession': SessionType.LECTURE
 }
 
 OPERATORS = {
@@ -110,9 +116,75 @@ class ConferenceApi(remote.Service):
         """Given a speaker, return all sessions given by this particular speaker, across all conferences"""
         pass
 
+    @endpoints.method(SessionForm, SessionForm, path='session',
+                      http_method='POST', name='createSession')
     def createSession(self, request):
         """Creates a new session. Only available  to the organizer of the conference"""
+        return self._createSessionObject(request)
+
+    def _createSessionObject(self, request):
+        """Creates a new Session object and inserts it into storage returning the created value."""
+        user = endpoints.get_current_user()
+        if not user:
+            raise endpoints.UnauthorizedException('Authorization required')
+        user_id = getUserId(user)
+
+        if not request.name:
+            raise endpoints.BadRequestException("Session 'name' field required")
+
+        # TODO: GENERICIZE THE RPC/NBD TRANSLATION?!
+        # copy ConferenceForm/ProtoRPC Message into dict
+        data = {field.name: getattr(request, field.name) for field in request.all_fields()}
+        del data['websafeConfKey']
+
+        # add default values for those missing (both data model & outbound Message)
+        for df in SESSION_DEFAULTS:
+            if data[df] in (None, []):
+                data[df] = SESSION_DEFAULTS[df]
+                setattr(request, df, SESSION_DEFAULTS[df])
+
+        # clean up some values. convert session types.
+        if data['typeOfSession']:
+            data['typeOfSession'] = str(data['typeOfSession'])
+
+        # fetch the key of the ancestor conference
+        conf_key = ndb.Key(urlsafe=request.websafeConfKey)
+        conf = conf_key.get()
+        if not conf:
+            raise endpoints.NotFoundException(
+                'No conference found with key: %s' % request.websafeConferenceKey
+            )
+
+        # check that user is conference owner
+        if user_id != conf.organizerUserId:
+            raise endpoints.ForbiddenException('Only the conference owner can create sessions.')
+
+        s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
+        s_key = ndb.Key(Session, s_id, parent=conf_key)
+        #data['key'] = s_key
+        data['conferenceKey'] = request.websafeConfKey
+
+        # create and persist the Session
+        # TODO: email organizer?
+        Session(**data).put()
+        return request
+
+    def _copySessionToForm(self, session):
+        """Copy relevant fields from Session to SessionForm."""
+        #TODO: genericize!!!
+        sf = SessionForm()
+        for field in sf.all_fields():
+            if hasattr(session, field.name):
+                #matching/common fields between classes
+                if field.name.endswith(''):
+                    pass
+                else:
+                    setattr(sf, field.name, getattr(conf, field.name))
+            elif field.name == '':
+                pass
+            #TODO: FINISH
         pass
+
 
     # - - - Conference objects - - - - - - - - - - - - - - - - -
 
@@ -150,10 +222,10 @@ class ConferenceApi(remote.Service):
         del data['organizerDisplayName']
 
         # add default values for those missing (both data model & outbound Message)
-        for df in DEFAULTS:
+        for df in CONF_DEFAULTS:
             if data[df] in (None, []):
-                data[df] = DEFAULTS[df]
-                setattr(request, df, DEFAULTS[df])
+                data[df] = CONF_DEFAULTS[df]
+                setattr(request, df, CONF_DEFAULTS[df])
 
         # convert dates from strings to Date objects; set month based on start_date
         if data['startDate']:
@@ -331,6 +403,7 @@ class ConferenceApi(remote.Service):
         # put display names in a dict for easier fetching
         names = {}
         for profile in profiles:
+            #TODO: fix displayName bug when there is no displayName yet!
             names[profile.key.id()] = profile.displayName
 
         # return individual ConferenceForm object per Conference
