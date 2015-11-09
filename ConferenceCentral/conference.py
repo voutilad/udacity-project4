@@ -99,13 +99,13 @@ class ConferenceApi(remote.Service):
 
     # - - - Session objects - - - - - - - - - - - - - - - - -
     @endpoints.method(CONF_GET_REQUEST, SessionForms,
-                      path='conference/{websafeConfKey}/sessions',
+                      path='conference/{websafeConferenceKey}/sessions',
                       http_method='GET', name='getConferenceSessions')
     def getConferenceSessions(self, request):
         """Given a conference, return all sessions
             Input: websafeConferenceKey
         """
-        wsck = request.websafeConfKey
+        wsck = request.websafeConferenceKey
         conf_key = ndb.Key(urlsafe=wsck)
         if not conf_key.get():
             raise endpoints.NotFoundException('No conference found with key: %s' % wsck)
@@ -165,8 +165,6 @@ class ConferenceApi(remote.Service):
             raise endpoints.ForbiddenException('Only the conference owner can create sessions.')
 
         s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
-        s_key = ndb.Key(Session, s_id, parent=conf_key)
-        #data['key'] = s_key
         data['conferenceKey'] = request.websafeConfKey
 
         # create and persist the Session
