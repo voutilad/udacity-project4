@@ -129,12 +129,22 @@ class ConferenceApi(remote.Service):
 
         return self._copySessionToForm(session)
 
-    @endpoints.method(CONF_GET_REQUEST, SessionForms,
-                      path='conference/{websafeConferenceKey}/wishlist')
+    @endpoints.method(CONF_GET_REQUEST, SessionForms, path='conference/{websafeConferenceKey}/wishlist',
+                      http_method='GET', name='getSessionsInWishlist')
     def getSessionsInWishlist(self, request):
         prof = self._getProfileFromUser()  # get user Profile
 
-        return SessionForms(items=[Session(name='hello world')])
+        wishlist = ConferenceWishlist().query(ancestor=prof.key)\
+            .filter(ConferenceWishlist.conferenceKey == request.websafeConferenceKey)\
+            .get()
+
+        if not wishlist:
+            raise endpoints.NotFoundException('No wishlist for conference with key %s' % request.websafeConferenceKey)
+
+        s_keys = [ndb.Key(urlsafe=sessionKey) for sessionKey in wishlist.sessionKeys]
+        sessions = ndb.get_multi(s_keys)
+
+        return SessionForms(items=[self._copySessionToForm(s) for s in sessions])
 
 
 
