@@ -29,7 +29,7 @@ from models import BooleanMessage
 from models import Conference
 from models import ConferenceForm
 from models import ConferenceForms
-from models import ConferenceQueryForm
+from models import SessionQueryForm
 from models import ConferenceQueryForms
 from models import Session
 from models import SessionType
@@ -114,10 +114,21 @@ class ConferenceApi(remote.Service):
 
         return SessionForms(items=[self._copySessionToForm(session) for session in sessions])
 
-
+    @endpoints.method(SessionQueryForm, SessionForms,
+                      path='getConferenceSessionsByType',
+                      http_method='GET', name='getConferenceSessionsByType')
     def getConferenceSessionsByType(self, request):
         """Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)"""
-        pass
+        wsck = request.websafeConfKey
+        c_key = ndb.Key(urlsafe=wsck)
+        if not c_key.get():
+            raise endpoints.NotFoundException('No conference found with key: %s' % wsck)
+
+        sessions = Session.query(ancestor=c_key)\
+            .filter(Session.typeOfSession == str(request.typeOfSession))
+
+        return SessionForms(items=[self._copySessionToForm(session) for session in sessions])
+
 
     def getSessionsBySpeaker(self, request):
         """Given a speaker, return all sessions given by this particular speaker, across all conferences"""
@@ -159,7 +170,7 @@ class ConferenceApi(remote.Service):
         conf = conf_key.get()
         if not conf:
             raise endpoints.NotFoundException(
-                'No conference found with key: %s' % request.websafeConferenceKey
+                'No conference found with key: %s' % request.websafeConfKey
             )
 
         # check that user is conference owner
@@ -410,8 +421,8 @@ class ConferenceApi(remote.Service):
         # put display names in a dict for easier fetching
         names = {}
         for profile in profiles:
-            #TODO: fix displayName bug when there is no displayName yet!
-            names[profile.key.id()] = profile.displayName
+            if profile.displayName:
+                names[profile.key.id()] = profile.displayName
 
         # return individual ConferenceForm object per Conference
         return ConferenceForms(
