@@ -10,8 +10,6 @@ created by wesc on 2014 apr 21
 
 """
 
-__author__ = 'wesc+api@google.com (Wesley Chun)'
-
 from datetime import datetime
 import endpoints
 from protorpc import messages
@@ -31,6 +29,7 @@ from models import ConferenceForm
 from models import ConferenceForms
 from models import SessionQueryForm
 from models import ConferenceQueryForms
+from models import ConferenceWishlist
 from models import Session
 from models import SessionType
 from models import SessionForm
@@ -40,7 +39,11 @@ from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
 from settings import IOS_CLIENT_ID
 from settings import ANDROID_AUDIENCE
-from utils import getUserId
+from utils import getUserId, getModelByWebKey
+
+# Original author declaration
+# __author__ = 'wesc+api@google.com (Wesley Chun)'
+__author__ = 'voutilad@gmail.com (Dave Voutila)'
 
 EMAIL_SCOPE = endpoints.EMAIL_SCOPE
 API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
@@ -84,8 +87,14 @@ CONF_GET_REQUEST = endpoints.ResourceContainer(
 
 CONF_POST_REQUEST = endpoints.ResourceContainer(
     ConferenceForm,
-    websafeConferenceKey=messages.StringField(1),
+    websafeConferenceKey=messages.StringField(1)
 )
+
+WISHLIST_REQUEST = endpoints.ResourceContainer(
+    message_types.VoidMessage,
+    websafeSessionKey=messages.StringField(1)
+)
+
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -96,6 +105,38 @@ CONF_POST_REQUEST = endpoints.ResourceContainer(
                scopes=[EMAIL_SCOPE])
 class ConferenceApi(remote.Service):
     """Conference API v0.1"""
+
+
+    # - - - WishListing - - - - - - - - - - - - - - - - - - -
+    @endpoints.method(WISHLIST_REQUEST, SessionForm, path='session/{websafeSessionKey}/wishlist',
+                      http_method='PUT', name='addSessionToWishlist')
+    def addSessionToWishlist(self, request):
+        prof = self._getProfileFromUser()  # get user Profile
+        session = getModelByWebKey(request.websafeSessionKey)  # get session to wishlist
+
+        #see if the wishlist exists
+        wishlist = ConferenceWishlist().query(ancestor=prof.key).get()
+        if not wishlist:
+            conf_key = session.key.parent().urlsafe()
+            wishlist = ConferenceWishlist(conferenceKey=conf_key, parent=prof.key)
+
+        #update wishlist
+        if session.key not in wishlist.sessionKeys:
+            wishlist.sessionKeys.append(session.key.urlsafe())
+            wishlist.put()
+        else:
+            print 'Attempt to add duplicate to wishlist.'
+
+        return self._copySessionToForm(session)
+
+    @endpoints.method(CONF_GET_REQUEST, SessionForms,
+                      path='conference/{websafeConferenceKey}/wishlist')
+    def getSessionsInWishlist(self, request):
+        prof = self._getProfileFromUser()  # get user Profile
+
+        return SessionForms(items=[Session(name='hello world')])
+
+
 
     # - - - Session objects - - - - - - - - - - - - - - - - -
     @endpoints.method(CONF_GET_REQUEST, SessionForms,

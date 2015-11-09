@@ -3,8 +3,10 @@ import os
 import time
 import uuid
 
+import endpoints
 from google.appengine.api import urlfetch
-from models import Profile
+from google.appengine.ext import ndb
+from models import Conference
 
 def getUserId(user, id_type="email"):
     if id_type == "email":
@@ -43,3 +45,25 @@ def getUserId(user, id_type="email"):
             return profile.id()
         else:
             return str(uuid.uuid1().get_hex())
+
+# --- Added by Dave Voutila <voutilad@gmail.com>
+
+def getModelByWebKey(websafeKey, model=None):
+    """
+    Fetches the key for a given model by the provided websafeKey value while validating an instance of the model exists.
+
+    :param websafeKey: web-safe string key of model instance to lookup
+    :param model: (optional) ndb.Model type (e.g. Conference) to validate against instance
+    :return: ndb.Key()
+    """
+    key = ndb.Key(urlsafe=websafeKey)
+    obj = key.get()
+    if not obj:
+        err = 'No instance found with key: {key}'.format(key=websafeKey)
+        raise endpoints.NotFoundException(err)
+
+    if model and type(model) != type(obj):
+        err = 'Instance is {got} instead of {expected}'.format(got=type(obj), expected=type(model))
+        raise endpoints.NotFoundException(err)
+
+    return obj
