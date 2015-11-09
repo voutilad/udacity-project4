@@ -109,8 +109,10 @@ class ConferenceApi(remote.Service):
         conf_key = ndb.Key(urlsafe=wsck)
         if not conf_key.get():
             raise endpoints.NotFoundException('No conference found with key: %s' % wsck)
-        
-        return SessionForms(items=[SessionForm(name='Hello World')])
+
+        sessions = Session.query(ancestor=conf_key)
+
+        return SessionForms(items=[self._copySessionToForm(session) for session in sessions])
 
 
     def getConferenceSessionsByType(self, request):
@@ -165,6 +167,8 @@ class ConferenceApi(remote.Service):
             raise endpoints.ForbiddenException('Only the conference owner can create sessions.')
 
         s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
+        s_key = ndb.Key(Session, s_id, parent=conf_key)
+        data['key'] = s_key
         data['conferenceKey'] = request.websafeConfKey
 
         # create and persist the Session
@@ -179,14 +183,14 @@ class ConferenceApi(remote.Service):
         for field in sf.all_fields():
             if hasattr(session, field.name):
                 #matching/common fields between classes
-                if field.name.endswith(''):
-                    pass
+                if field.name == 'typeOfSession':
+                    setattr(sf, field.name, getattr(SessionType, getattr(session, field.name)))
                 else:
-                    setattr(sf, field.name, getattr(conf, field.name))
-            elif field.name == '':
-                pass
-            #TODO: FINISH
-        pass
+                    setattr(sf, field.name, getattr(session, field.name))
+            elif field.name == 'websafeConfKey':
+                setattr(sf, field.name, session.key.urlsafe())
+
+        return sf
 
 
     # - - - Conference objects - - - - - - - - - - - - - - - - -
