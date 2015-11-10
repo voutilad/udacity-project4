@@ -128,7 +128,7 @@ class Speaker(messages.Message):
 
 class WishlistForm(messages.Message):
     """WishlistForm -- RPC message for containing wishlist sessions"""
-    websafeConfKey = message.StringField(1)
+    websafeConfKey = messages.StringField(1)
     websafeSessionKeys = messages.StringField(2, repeated=True)
 
 

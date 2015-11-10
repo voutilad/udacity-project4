@@ -167,10 +167,21 @@ class ConferenceApi(remote.Service):
                       http_method='GET', name='getWishlists')
     def getWishlists(self, request):
         prof = self._getProfileFromUser()  # get user Profile
+        wishlists = ConferenceWishlist.query(ancestor=prof.key).fetch()
+        return WishlistForms(
+            items=[self._copyWishlistToForm(wishlist) for wishlist in wishlists]
+        )
 
-        return WishlistForms(items=[])
+    def _copyWishlistToForm(self, wishlist):
+        if not wishlist or not isinstance(wishlist, ndb.Model):
+            raise endpoints.ServiceException(
+                'endpoint cannot create WishlistForm from type %' % str(type(wishlsit))
+            )
 
-
+        wf = WishlistForm()
+        wf.websafeConfKey = wishlist.conferenceKey
+        wf.websafeSessionKeys = wishlist.sessionKeys
+        return wf
 
     # - - - Session objects - - - - - - - - - - - - - - - - -
     @endpoints.method(CONF_GET_REQUEST, SessionForms,
