@@ -176,7 +176,7 @@ class ConferenceApi(remote.Service):
             raise endpoints.NotFoundException('No conference found with key: %s' % wsck)
 
         sessions = Session.query(ancestor=c_key)\
-            .filter(Session.typeOfSession == str(request.typeOfSession))
+            .filter(Session.typeOfSession == request.typeOfSession)
 
         return SessionForms(items=[self._copySessionToForm(session) for session in sessions])
 
@@ -212,10 +212,6 @@ class ConferenceApi(remote.Service):
                 data[df] = SESSION_DEFAULTS[df]
                 setattr(request, df, SESSION_DEFAULTS[df])
 
-        # clean up some values. convert session types.
-        if data['typeOfSession']:
-            data['typeOfSession'] = str(data['typeOfSession'])
-
         # fetch the key of the ancestor conference
         conf_key = ndb.Key(urlsafe=request.websafeConfKey)
         conf = conf_key.get()
@@ -245,8 +241,8 @@ class ConferenceApi(remote.Service):
         for field in sf.all_fields():
             if hasattr(session, field.name):
                 #matching/common fields between classes
-                if field.name == 'typeOfSession':
-                    setattr(sf, field.name, getattr(SessionType, getattr(session, field.name)))
+                if field.name in ['date', 'startTime']:
+                    setattr(sf, field.name, str(session.date))
                 else:
                     setattr(sf, field.name, getattr(session, field.name))
             elif field.name == 'websafeConfKey':
@@ -472,8 +468,11 @@ class ConferenceApi(remote.Service):
         # put display names in a dict for easier fetching
         names = {}
         for profile in profiles:
-            if profile.displayName:
-                names[profile.key.id()] = profile.displayName
+            if hasattr(profile, 'displayName'):
+                names[profile.key.id()] = getattr(profile, 'displayName')
+            else:
+                # Chances are someone wasn't forced to set their displayName yet!
+                names[profile.key.id()] = ''
 
         # return individual ConferenceForm object per Conference
         return ConferenceForms(

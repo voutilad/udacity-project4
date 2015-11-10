@@ -14,7 +14,7 @@ import httplib
 import endpoints
 from protorpc import messages
 from google.appengine.ext import ndb
-
+from google.appengine.ext.ndb import msgprop
 
 class ConflictException(endpoints.ServiceException):
     """ConflictException -- exception mapped to HTTP 409 response"""
@@ -92,13 +92,19 @@ class ConferenceWishlist(ndb.Model):
     sessionKeys = ndb.StringProperty(repeated=True)
 
 
+class SessionType(messages.Enum):
+    """SessionType -- type of session being held at conference"""
+    LECTURE = 1
+    KEYNOTE = 2
+    WORKSHOP = 3
+
 class Session(ndb.Model):
     """Session -- Session object"""
     name = ndb.StringProperty(required=True)
     highlights = ndb.StringProperty(repeated=True)
     speaker = ndb.StringProperty()
     duration = ndb.IntegerProperty()
-    typeOfSession = ndb.StringProperty() #EnumField: SessionType
+    typeOfSession = msgprop.EnumProperty(SessionType, required=True, indexed=True) #EnumField: SessionType    date = ndb.DateProperty()
     date = ndb.DateProperty()
     startTime = ndb.TimeProperty()
     conferenceKey = ndb.StringProperty()
@@ -109,7 +115,7 @@ class SessionForm(messages.Message):
     highlights = messages.StringField(2, repeated=True)
     speaker = messages.StringField(3)
     duration = messages.IntegerField(4)
-    typeOfSession = messages.EnumField('SessionType', 5)
+    typeOfSession = messages.EnumField(SessionType, 5)
     date = messages.StringField(6)
     startTime = messages.StringField(7)
     websafeConfKey = messages.StringField(8)
@@ -117,12 +123,6 @@ class SessionForm(messages.Message):
 class SessionForms(messages.Message):
     """SessionForms -- multiple SessionForm's"""
     items = messages.MessageField(SessionForm, 1, repeated=True)
-
-class SessionType(messages.Enum):
-    """SessionType -- type of session being held at conference"""
-    LECTURE = 1
-    KEYNOTE = 2
-    WORKSHOP = 3
 
 class Speaker(messages.Message):
     name = messages.StringField(1, required=True)
