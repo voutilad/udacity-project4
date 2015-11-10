@@ -116,7 +116,10 @@ class ConferenceApi(remote.Service):
         session = getModelByWebKey(request.websafeSessionKey)  # get session to wishlist
 
         #see if the wishlist exists
-        wishlist = ConferenceWishlist().query(ancestor=prof.key).get()
+
+        wishlist = ConferenceWishlist().query(ancestor=prof.key)\
+            .filter(ConferenceWishlist.conferenceKey == session.key.parent().urlsafe())\
+            .get()
         if not wishlist:
             conf_key = session.key.parent().urlsafe()
             wishlist = ConferenceWishlist(conferenceKey=conf_key, parent=prof.key)
