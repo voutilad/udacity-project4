@@ -105,7 +105,7 @@ WISHLIST_REQUEST = endpoints.ResourceContainer(
                allowed_client_ids=[WEB_CLIENT_ID, API_EXPLORER_CLIENT_ID, ANDROID_CLIENT_ID, IOS_CLIENT_ID],
                scopes=[EMAIL_SCOPE])
 class ConferenceApi(remote.Service):
-    """Conference API v0.1"""
+    """Conference API v1.0"""
 
 
     # - - - WishListing - - - - - - - - - - - - - - - - - - -
@@ -133,6 +133,8 @@ class ConferenceApi(remote.Service):
     @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='session/{websafeSessionKey}/wishlist',
                       http_method='DELETE', name='removeSessionFromWishlist')
     def removeSessionFromWishlist(self, request):
+        """ Removes a Session from a user's wishlist for the containing Conference
+        """
         wssk = request.websafeSessionKey
         prof = self._getProfileFromUser()  # get user Profile
 
@@ -149,6 +151,9 @@ class ConferenceApi(remote.Service):
     @endpoints.method(CONF_GET_REQUEST, SessionForms, path='conference/{websafeConferenceKey}/wishlist',
                       http_method='GET', name='getSessionsInWishlist')
     def getSessionsInWishlist(self, request):
+        """
+        Gets the list of sessions wishlisted by a User given a Conference.
+        """
         prof = self._getProfileFromUser()  # get user Profile
 
         wishlist = ConferenceWishlist().query(ancestor=prof.key)\
@@ -166,6 +171,10 @@ class ConferenceApi(remote.Service):
     @endpoints.method(message_types.VoidMessage, WishlistForms, path='getWishlists',
                       http_method='GET', name='getWishlists')
     def getWishlists(self, request):
+        """
+        Endpoint for retrieving all wishlists for a requesting user
+        """
+        #TODO: add max records and sortability
         prof = self._getProfileFromUser()  # get user Profile
         wishlists = ConferenceWishlist.query(ancestor=prof.key).fetch()
         return WishlistForms(
@@ -173,6 +182,11 @@ class ConferenceApi(remote.Service):
         )
 
     def _copyWishlistToForm(self, wishlist):
+        """
+        Converts a wishlist model object into it's rpc message format.
+        :param wishlist: ConferenceWishlist object to conver into ConferenceWishlistForm
+        :return: ConferenceWishlistForm
+        """
         if not wishlist or not isinstance(wishlist, ndb.Model):
             raise endpoints.ServiceException(
                 'endpoint cannot create WishlistForm from type %' % str(type(wishlsit))
@@ -246,6 +260,10 @@ class ConferenceApi(remote.Service):
             if data[df] in (None, []):
                 data[df] = SESSION_DEFAULTS[df]
                 setattr(request, df, SESSION_DEFAULTS[df])
+
+        #TODO: validate session dates are sane i.e. within the start/end of the conf.
+        data['date'] = datetime.strptime(data['date'][:10], '%Y-%m-%d').date()
+        data['startTime'] = datetime.strptime(data['startTime'][:6], '%H:%M').time()
 
         # fetch the key of the ancestor conference
         conf_key = ndb.Key(urlsafe=request.websafeConfKey)
