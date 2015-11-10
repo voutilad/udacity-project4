@@ -91,7 +91,6 @@ class ConferenceWishlist(ndb.Model):
     conferenceKey = ndb.StringProperty(required=True)
     sessionKeys = ndb.StringProperty(repeated=True)
 
-
 class SessionType(messages.Enum):
     """SessionType -- type of session being held at conference"""
     LECTURE = 1
@@ -129,7 +128,14 @@ class Speaker(messages.Message):
 
 class WishlistForm(messages.Message):
     """WishlistForm -- RPC message for containing wishlist sessions"""
-    websafeSessionKeys = messages.StringField(1, repeated=True)
+    websafeConfKey = message.StringField(1)
+    websafeSessionKeys = messages.StringField(2, repeated=True)
+
+
+class WishlistForms(messages.Message):
+    """WishlistForms -- RPC message containing multiple WishlistForm's for response"""
+    items = messages.MessageField(WishlistForm, 1, repeated=True)
+
 
 class TeeShirtSize(messages.Enum):
     """TeeShirtSize -- t-shirt size enumeration value"""

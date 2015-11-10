@@ -35,6 +35,7 @@ from models import SessionType
 from models import SessionForm
 from models import SessionForms
 from models import TeeShirtSize
+from models import WishlistForm, WishlistForms
 from settings import WEB_CLIENT_ID
 from settings import ANDROID_CLIENT_ID
 from settings import IOS_CLIENT_ID
@@ -129,6 +130,22 @@ class ConferenceApi(remote.Service):
 
         return self._copySessionToForm(session)
 
+    @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='session/{websafeSessionKey}/wishlist',
+                      http_method='DELETE', name='removeSessionFromWishlist')
+    def removeSessionFromWishlist(self, request):
+        wssk = request.websafeSessionKey
+        prof = self._getProfileFromUser()  # get user Profile
+
+        #see if the wishlist exists
+        wishlist = ConferenceWishlist().query(ancestor=prof.key).get()
+        if not wishlist:
+            raise endpoints.NotFoundException('No wishlist found.')
+
+        wishlist.sessionKeys.remove(wssk)
+        wishlist.put()
+
+        return BooleanMessage(data=True)
+
     @endpoints.method(CONF_GET_REQUEST, SessionForms, path='conference/{websafeConferenceKey}/wishlist',
                       http_method='GET', name='getSessionsInWishlist')
     def getSessionsInWishlist(self, request):
@@ -145,6 +162,13 @@ class ConferenceApi(remote.Service):
         sessions = ndb.get_multi(s_keys)
 
         return SessionForms(items=[self._copySessionToForm(s) for s in sessions])
+
+    @endpoints.method(message_types.VoidMessage, WishlistForms, path='getWishlists',
+                      http_method='GET', name='getWishlists')
+    def getWishlists(self, request):
+        prof = self._getProfileFromUser()  # get user Profile
+
+        return WishlistForms(items=[])
 
 
 
