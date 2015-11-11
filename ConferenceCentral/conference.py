@@ -192,7 +192,7 @@ class ConferenceApi(remote.Service):
         """
         if not wishlist or not isinstance(wishlist, ndb.Model):
             raise endpoints.ServiceException(
-                'endpoint cannot create WishlistForm from type %' % str(type(wishlsit))
+                'endpoint cannot create WishlistForm from type %' % str(type(wishlist))
             )
 
         wf = WishlistForm()

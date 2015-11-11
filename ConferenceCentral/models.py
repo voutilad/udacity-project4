@@ -125,6 +125,7 @@ class SessionForms(messages.Message):
 
 class Speaker(messages.Message):
     name = messages.StringField(1, required=True)
+    title = messages.StringField(2)
 
 class WishlistForm(messages.Message):
     """WishlistForm -- RPC message for containing wishlist sessions"""
