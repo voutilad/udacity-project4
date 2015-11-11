@@ -44,12 +44,15 @@ CONF_GET_REQUEST = endpoints.ResourceContainer(
 )
 
 
-@API.api_class(resource_name='session')
+@API.api_class(resource_name='sessions')
 class SessionApi(remote.Service):
     """Session API for ConferenceCentral"""
+    #
+    # - - - Endpoints - - - - - - - - - - - - - - - - - - -
+    #
 
     # - - - WishListing - - - - - - - - - - - - - - - - - - -
-    @endpoints.method(WISHLIST_REQUEST, SessionForm, path='session/{websafeSessionKey}/wishlist',
+    @endpoints.method(WISHLIST_REQUEST, SessionForm, path='{websafeSessionKey}/wishlist',
                       http_method='PUT', name='addSessionToWishlist')
     def addSessionToWishlist(self, request):
         prof = ProfileApi.getProfileFromUser()  # get user Profile
@@ -73,7 +76,7 @@ class SessionApi(remote.Service):
 
         return self._copySessionToForm(session)
 
-    @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='session/{websafeSessionKey}/wishlist',
+    @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='{websafeSessionKey}/wishlist',
                       http_method='DELETE', name='removeSessionFromWishlist')
     def removeSessionFromWishlist(self, request):
         """
@@ -92,6 +95,7 @@ class SessionApi(remote.Service):
 
         return BooleanMessage(data=True)
 
+    # TODO: refactor api call to use a non-conference message
     @endpoints.method(CONF_GET_REQUEST, SessionForms, path='conference/{websafeConferenceKey}/wishlist',
                       http_method='GET', name='getSessionsInWishlist')
     def getSessionsInWishlist(self, request):
@@ -188,6 +192,14 @@ class SessionApi(remote.Service):
     def createSession(self, request):
         """Creates a new session. Only available  to the organizer of the conference"""
         return self._createSessionObject(request)
+
+    #
+    # - - - Profile Public Methods - - - - - - - - - - - - - - - - - - -
+    #
+
+    #
+    # - - - Profile Private Methods - - - - - - - - - - - - - - - - - - -
+    #
 
     def _createSessionObject(self, request):
         """Creates a new Session object and inserts it into storage returning the created value."""

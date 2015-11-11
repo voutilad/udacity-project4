@@ -29,7 +29,7 @@ API_SERVER = endpoints.api_server([ConferenceApi, SessionApi, ProfileApi])  # re
 class SetAnnouncementHandler(webapp2.RequestHandler):
     def get(self):
         """Set Announcement in Memcache."""
-        ConferenceApi._cacheAnnouncement()
+        ConferenceApi.cacheAnnouncement()
         self.response.set_status(204)
 
 

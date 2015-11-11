@@ -21,7 +21,7 @@ from utils import getUserId
 __author__ = 'voutilad@gmail.com (Dave Voutila)'
 
 
-@API.api_class(resource_name='profile')
+@API.api_class(resource_name='profiles')
 class ProfileApi(remote.Service):
     """Profile API"""
     #

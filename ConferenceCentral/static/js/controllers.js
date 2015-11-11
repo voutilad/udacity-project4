@@ -63,7 +63,7 @@ conferenceApp.controllers.controller('MyProfileCtrl',
             var retrieveProfileCallback = function () {
                 $scope.profile = {};
                 $scope.loading = true;
-                gapi.client.conferenceCentral.profile.getProfile().
+                gapi.client.conferenceCentral.profiles.getProfile().
                     execute(function (resp) {
                         $scope.$apply(function () {
                             $scope.loading = false;
@@ -94,7 +94,7 @@ conferenceApp.controllers.controller('MyProfileCtrl',
         $scope.saveProfile = function () {
             $scope.submitted = true;
             $scope.loading = true;
-            gapi.client.conferenceCentral.profile.saveProfile($scope.profile).
+            gapi.client.conferenceCentral.profiles.saveProfile($scope.profile).
                 execute(function (resp) {
                     $scope.$apply(function () {
                         $scope.loading = false;
@@ -214,7 +214,7 @@ conferenceApp.controllers.controller('CreateConferenceCtrl',
             }
 
             $scope.loading = true;
-            gapi.client.conferenceCentral.conference.createConference($scope.conference).
+            gapi.client.conferenceCentral.conferences.createConference($scope.conference).
                 execute(function (resp) {
                     $scope.$apply(function () {
                         $scope.loading = false;
@@ -441,7 +441,7 @@ conferenceApp.controllers.controller('ShowConferenceCtrl', function ($scope, $lo
             }
         }
         $scope.loading = true;
-        gapi.client.conferenceCentral.conference.queryConferences(sendFilters).
+        gapi.client.conferenceCentral.conferences.queryConferences(sendFilters).
             execute(function (resp) {
                 $scope.$apply(function () {
                     $scope.loading = false;
@@ -473,7 +473,7 @@ conferenceApp.controllers.controller('ShowConferenceCtrl', function ($scope, $lo
      */
     $scope.getConferencesCreated = function () {
         $scope.loading = true;
-        gapi.client.conferenceCentral.conference.getConferencesCreated().
+        gapi.client.conferenceCentral.conferences.getConferencesCreated().
             execute(function (resp) {
                 $scope.$apply(function () {
                     $scope.loading = false;
@@ -511,7 +511,7 @@ conferenceApp.controllers.controller('ShowConferenceCtrl', function ($scope, $lo
      */
     $scope.getConferencesAttend = function () {
         $scope.loading = true;
-        gapi.client.conferenceCentral.conference.getConferencesToAttend().
+        gapi.client.conferenceCentral.conferences.getConferencesToAttend().
             execute(function (resp) {
                 $scope.$apply(function () {
                     if (resp.error) {
@@ -559,7 +559,7 @@ conferenceApp.controllers.controller('ConferenceDetailCtrl', function ($scope, $
      */
     $scope.init = function () {
         $scope.loading = true;
-        gapi.client.conferenceCentral.conference.getConference({
+        gapi.client.conferenceCentral.conferences.getConference({
             websafeConferenceKey: $routeParams.websafeConferenceKey
         }).execute(function (resp) {
             $scope.$apply(function () {
@@ -581,7 +581,7 @@ conferenceApp.controllers.controller('ConferenceDetailCtrl', function ($scope, $
 
         $scope.loading = true;
         // If the user is attending the conference, updates the status message and available function.
-        gapi.client.conferenceCentral.profile.getProfile().execute(function (resp) {
+        gapi.client.conferenceCentral.profiles.getProfile().execute(function (resp) {
             $scope.$apply(function () {
                 $scope.loading = false;
                 if (resp.error) {
@@ -607,7 +607,7 @@ conferenceApp.controllers.controller('ConferenceDetailCtrl', function ($scope, $
      */
     $scope.registerForConference = function () {
         $scope.loading = true;
-        gapi.client.conferenceCentral.conference.registerForConference({
+        gapi.client.conferenceCentral.conferences.registerForConference({
             websafeConferenceKey: $routeParams.websafeConferenceKey
         }).execute(function (resp) {
             $scope.$apply(function () {
@@ -644,7 +644,7 @@ conferenceApp.controllers.controller('ConferenceDetailCtrl', function ($scope, $
      */
     $scope.unregisterFromConference = function () {
         $scope.loading = true;
-        gapi.client.conferenceCentral.conference.unregisterFromConference({
+        gapi.client.conferenceCentral.conferences.unregisterFromConference({
             websafeConferenceKey: $routeParams.websafeConferenceKey
         }).execute(function (resp) {
             $scope.$apply(function () {
