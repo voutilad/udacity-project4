@@ -25,6 +25,7 @@ from models import SessionQueryForm
 from models import SessionType
 from models import WishlistForm, WishlistForms
 from settings import API
+from profile import ProfileApi
 from utils import getUserId, getModelByWebKey
 
 SESSION_DEFAULTS = {
@@ -51,7 +52,7 @@ class SessionApi(remote.Service):
     @endpoints.method(WISHLIST_REQUEST, SessionForm, path='session/{websafeSessionKey}/wishlist',
                       http_method='PUT', name='addSessionToWishlist')
     def addSessionToWishlist(self, request):
-        prof = self._getProfileFromUser()  # get user Profile
+        prof = ProfileApi.getProfileFromUser()  # get user Profile
         session = getModelByWebKey(request.websafeSessionKey)  # get session to wishlist
 
         # see if the wishlist exists
@@ -79,7 +80,7 @@ class SessionApi(remote.Service):
         Removes a Session from a user's wishlist for the containing Conference
         """
         wssk = request.websafeSessionKey
-        prof = self._getProfileFromUser()  # get user Profile
+        prof = ProfileApi.getProfileFromUser()  # get user Profile
 
         # see if the wishlist exists
         wishlist = ConferenceWishlist().query(ancestor=prof.key).get()
@@ -97,7 +98,7 @@ class SessionApi(remote.Service):
         """
         Gets the list of sessions wishlisted by a User given a Conference.
         """
-        prof = self._getProfileFromUser()  # get user Profile
+        prof = ProfileApi.getProfileFromUser()  # get user Profile
 
         wishlist = ConferenceWishlist().query(ancestor=prof.key) \
             .filter(ConferenceWishlist.conferenceKey == request.websafeConferenceKey) \
@@ -118,7 +119,7 @@ class SessionApi(remote.Service):
         Endpoint for retrieving all wishlists for a requesting user
         """
         # TODO: add max records and sortability
-        prof = self._getProfileFromUser()  # get user Profile
+        prof = ProfileApi.getProfileFromUser()  # get user Profile
         wishlists = ConferenceWishlist.query(ancestor=prof.key).fetch()
         return WishlistForms(
             items=[self._copyWishlistToForm(wishlist) for wishlist in wishlists]

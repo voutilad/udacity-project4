@@ -18,10 +18,11 @@ from google.appengine.api import app_identity
 from google.appengine.api import mail
 from session import SessionApi
 from conference import ConferenceApi
+from profile import ProfileApi
 
 # - - - Endpoints Client Api - - -
 
-API_SERVER = endpoints.api_server([ConferenceApi, SessionApi])  # register API
+API_SERVER = endpoints.api_server([ConferenceApi, SessionApi, ProfileApi])  # register API
 
 # - - - Backend Api - - -
 

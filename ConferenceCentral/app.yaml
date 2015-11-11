@@ -31,7 +31,7 @@ handlers:       # static then dynamic
   secure: always
 
 - url: /tasks/send_confirmation_email
-  script: main.app
+  script: main.APP
 
 - url: /crons/set_announcement
   script: main.APP
