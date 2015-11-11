@@ -48,7 +48,7 @@ def getUserId(user, id_type="email"):
 
 # --- Added by Dave Voutila <voutilad@gmail.com>
 
-def getModelByWebKey(websafeKey, model=None):
+def get_from_webkey(websafeKey, model=None):
     """
     Fetches the key for a given model by the provided websafeKey value while validating an instance of the model exists.
 
@@ -56,7 +56,12 @@ def getModelByWebKey(websafeKey, model=None):
     :param model: (optional) ndb.Model type (e.g. Conference) to validate against instance
     :return: ndb.Key()
     """
-    key = ndb.Key(urlsafe=websafeKey)
+    try:
+        key = ndb.Key(urlsafe=websafeKey)
+    except TypeError:
+        print '!!! Asked to resolve a bogus key: %s' % websafeKey
+        return None
+
     obj = key.get()
     if not obj:
         err = 'No instance found with key: {key}'.format(key=websafeKey)
