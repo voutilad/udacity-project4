@@ -79,10 +79,10 @@ class SessionApi(remote.Service):
         Endpoint for retrieving all wishlists for a requesting user
         """
         # TODO: add max records and sortability
-        prof = ProfileApi.getProfileFromUser()  # get user Profile
+        prof = ProfileApi.profile_from_user()  # get user Profile
         wishlists = ConferenceWishlist.query(ancestor=prof.key).fetch()
         return WishlistForms(
-            items=[self._copyWishlistToForm(wishlist) for wishlist in wishlists]
+            items=[wishlist.to_form() for wishlist in wishlists]
         )
 
     @endpoints.method(SessionQueryForm, SessionForms, path='sessions/query',
@@ -105,7 +105,7 @@ class SessionApi(remote.Service):
         sessions = Session.query(ancestor=c_key) \
             .filter(Session.typeOfSession == request.typeOfSession)
 
-        return SessionForms(items=[SessionApi.session_to_form(session) for session in sessions])
+        return SessionForms(items=[session.to_form() for session in sessions])
 
     @endpoints.method(message_types.VoidMessage, SessionForms, path='sessions/filter/speaker')
     def getSessionsBySpeaker(self, request):
@@ -149,7 +149,7 @@ class SessionApi(remote.Service):
         :param add: whether to add (True) to the wishlist or remove from a wishlist (False)
         :return: BooleanMessage - True if successful, False if failure
         """
-        prof = ProfileApi.getProfileFromUser()  # get user Profile
+        prof = ProfileApi.profile_from_user()  # get user Profile
         session = get_from_webkey(request.websafeSessionKey)  # get session to wishlist
 
         if not session:
@@ -197,24 +197,13 @@ class SessionApi(remote.Service):
 
         return BooleanMessage(data=True)
 
-    def _copyWishlistToForm(self, wishlist):
-        """
-        Converts a wishlist model object into it's rpc message format.
-        :param wishlist: ConferenceWishlist object to conver into ConferenceWishlistForm
-        :return: ConferenceWishlistForm
-        """
-        if not wishlist or not isinstance(wishlist, ndb.Model):
-            raise endpoints.ServiceException(
-                'endpoint cannot create WishlistForm from type %' % str(type(wishlist))
-            )
-
-        wf = WishlistForm()
-        wf.websafeConfKey = wishlist.conferenceKey
-        wf.websafeSessionKeys = wishlist.sessionKeys
-        return wf
 
     def _createSessionObject(self, request):
-        """Creates a new Session object and inserts it into storage returning the created value."""
+        """
+        Creates a new Session object and inserts it into storage returning the created value.
+        :param request:
+        :return:
+        """
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')

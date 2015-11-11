@@ -132,7 +132,7 @@ class ConferenceApi(remote.Service):
                 'No conference found with key: %s' % request.websafeConferenceKey)
         prof = conf.key.parent().get()
         # return ConferenceForm
-        return self.conference_to_form(conf, getattr(prof, 'displayName'))
+        return conf.to_form(getattr(prof, 'displayName'))
 
     @endpoints.method(VoidMessage, ConferenceForms, path='conferences/created',
                       http_method='POST', name='getConferencesCreated')
@@ -156,7 +156,7 @@ class ConferenceApi(remote.Service):
         prof = ndb.Key(Profile, user_id).get()
         # return set of ConferenceForm objects per Conference
         return ConferenceForms(
-            items=[self.conference_to_form(conf, getattr(prof, 'displayName')) for conf in confs]
+            items=[conf.to_form(getattr(prof, 'displayName')) for conf in confs]
         )
 
     @endpoints.method(CONF_GET_REQUEST, SessionForms, path='conference/{websafeConferenceKey}/sessions',
@@ -184,7 +184,7 @@ class ConferenceApi(remote.Service):
         :param request: Conference GET Request [VoidMessage, conference key in query string]
         :return: SessionForms
         """
-        prof = ProfileApi.getProfileFromUser()  # get user Profile
+        prof = ProfileApi.profile_from_user()  # get user Profile
 
         wishlist = ConferenceWishlist().query(ancestor=prof.key) \
             .filter(ConferenceWishlist.conferenceKey == request.websafeConferenceKey) \
@@ -224,7 +224,7 @@ class ConferenceApi(remote.Service):
 
         # return individual ConferenceForm object per Conference
         return ConferenceForms(
-            items=[self.conference_to_form(conf, names[conf.organizerUserId]) for conf in conferences]
+            items=[conf.to_form(names[conf.organizerUserId]) for conf in conferences]
         )
 
     @endpoints.method(VoidMessage, ConferenceForms, path='conferences/attending',
@@ -238,7 +238,7 @@ class ConferenceApi(remote.Service):
         if not isinstance(request, message_types.VoidMessage):
             raise endpoints.BadRequestException()
 
-        prof = ProfileApi.getProfileFromUser()  # get user Profile
+        prof = ProfileApi.profile_from_user()  # get user Profile
         conf_keys = [ndb.Key(urlsafe=wsck) for wsck in prof.conferenceKeysToAttend]
         conferences = ndb.get_multi(conf_keys)
 
@@ -252,7 +252,7 @@ class ConferenceApi(remote.Service):
             names[profile.key.id()] = profile.displayName
 
         # return set of ConferenceForm objects per Conference
-        return ConferenceForms(items=[self.conference_to_form(conf, names[conf.organizerUserId])
+        return ConferenceForms(items=[conf.to_form(names[conf.organizerUserId])
                                       for conf in conferences]
                                )
 
@@ -309,36 +309,12 @@ class ConferenceApi(remote.Service):
         q = q.filter(Conference.month == 6)
 
         return ConferenceForms(
-            items=[self.conference_to_form(conf, "") for conf in q]
+            items=[conf.to_form() for conf in q]
         )
 
     #
     # - - - Conference Public Methods - - - - - - - - - - - - - - - - - - -
     #
-
-    @staticmethod
-    def conference_to_form(conf, display_name):
-        """
-        Copy relevant fields from Conference to ConferenceForm.
-        :param cls:
-        :param conf:
-        :param display_name:
-        :return:
-        """
-        cf = ConferenceForm()
-        for field in cf.all_fields():
-            if hasattr(conf, field.name):
-                # convert Date to date string; just copy others
-                if field.name.endswith('Date'):
-                    setattr(cf, field.name, str(getattr(conf, field.name)))
-                else:
-                    setattr(cf, field.name, getattr(conf, field.name))
-            elif field.name == "websafeKey":
-                setattr(cf, field.name, conf.key.urlsafe())
-        if display_name:
-            setattr(cf, 'organizerDisplayName', display_name)
-        cf.check_initialized()
-        return cf
 
     @staticmethod
     def cache_announcement():
@@ -462,7 +438,7 @@ class ConferenceApi(remote.Service):
                 setattr(conf, field.name, data)
         conf.put()
         prof = ndb.Key(Profile, user_id).get()
-        return conference_to_form(conf, getattr(prof, 'displayName'))
+        return conf.to_form(getattr(prof, 'displayName'))
 
     def _query(self, request):
         """
@@ -527,7 +503,7 @@ class ConferenceApi(remote.Service):
         :return: BooleanMessage - True if successful, False if failure
         """
         retval = None
-        prof = ProfileApi.getProfileFromUser()  # get user Profile
+        prof = ProfileApi.profile_from_user()  # get user Profile
 
         # check if conf exists given websafeConfKey
         # get conference; check that it exists

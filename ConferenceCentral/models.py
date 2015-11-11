@@ -28,6 +28,23 @@ class Profile(ndb.Model):
     teeShirtSize = ndb.StringProperty(default='NOT_SPECIFIED')
     conferenceKeysToAttend = ndb.StringProperty(repeated=True)
 
+    def to_form(self):
+        """
+        Creates ProfileForm from the Profile model instance
+        :return: ProfileForm
+        """
+        pf = ProfileForm()
+        for field in pf.all_fields():
+            if hasattr(self, field.name):
+                # convert t-shirt string to Enum; just copy others
+                if field.name == 'teeShirtSize':
+                    setattr(pf, field.name, getattr(TeeShirtSize, getattr(self, field.name)))
+                else:
+                    setattr(pf, field.name, getattr(self, field.name))
+        pf.check_initialized()
+        return pf
+
+
 class ProfileMiniForm(messages.Message):
     """ProfileMiniForm -- update Profile form message"""
     displayName = messages.StringField(1)
@@ -65,6 +82,26 @@ class Conference(ndb.Model):
     maxAttendees = ndb.IntegerProperty()
     seatsAvailable = ndb.IntegerProperty()
 
+    def to_form(self, display_name=None):
+        """
+        Creates RPC Message ConferenceForm representation of a Conference
+        :param display_name: Optional display name string for the ConferenceForm
+        :return: ConferenceForm
+        """
+        cf = ConferenceForm()
+        for field in cf.all_fields():
+            if hasattr(self, field.name):
+                # convert Date to date string; just copy others
+                if field.name.endswith('Date'):
+                    setattr(cf, field.name, str(getattr(self, field.name)))
+                else:
+                    setattr(cf, field.name, getattr(self, field.name))
+            elif field.name == "websafeKey":
+                setattr(cf, field.name, self.key.urlsafe())
+        if display_name:
+            setattr(cf, 'organizerDisplayName', display_name)
+        cf.check_initialized()
+        return cf
 
 class ConferenceForm(messages.Message):
     """ConferenceForm -- Conference outbound form message"""
@@ -91,6 +128,16 @@ class ConferenceWishlist(ndb.Model):
     conferenceKey = ndb.StringProperty(required=True)
     sessionKeys = ndb.StringProperty(repeated=True)
 
+    def to_form(self):
+        """
+        Creates the ConferenceWishlistForm representation of the model object
+        :return: ConferenceWishlistForm
+        """
+        wf = WishlistForm()
+        wf.websafeConfKey = self.conferenceKey
+        wf.websafeSessionKeys = self.sessionKeys
+        return wf
+
 class SessionType(messages.Enum):
     """SessionType -- type of session being held at conference"""
     LECTURE = 1
@@ -107,6 +154,24 @@ class Session(ndb.Model):
     date = ndb.DateProperty()
     startTime = ndb.TimeProperty()
     conferenceKey = ndb.StringProperty()
+
+    def to_form(self):
+        """
+        Create the corresponding SessionForm RPC message
+        :return: SessionForm
+        """
+        sf = SessionForm()
+        for field in sf.all_fields():
+            if hasattr(self, field.name):
+                # matching/common fields between classes
+                if field.name in ['date', 'startTime']:
+                    setattr(sf, field.name, str(self.date))
+                else:
+                    setattr(sf, field.name, getattr(self, field.name))
+            elif field.name == 'websafeConfKey':
+                setattr(sf, field.name, self.key.urlsafe())
+
+        return sf
 
 class SessionForm(messages.Message):
     """SessionForm -- RPC message containing details about a Session"""

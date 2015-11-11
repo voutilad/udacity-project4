@@ -32,20 +32,23 @@ class ProfileApi(remote.Service):
                       path='profile', http_method='GET', name='getProfile')
     def getProfile(self, request):
         """Return user profile."""
-        return self._doProfile()
+        return self._do_profile()
 
     @endpoints.method(ProfileMiniForm, ProfileForm,
                       path='profile', http_method='POST', name='saveProfile')
     def saveProfile(self, request):
         """Update & return user profile."""
-        return self._doProfile(request)
+        return self._do_profile(request)
 
     #
     # - - - Profile Public Methods - - - - - - - - - - - - - - - - - - -
     #
     @classmethod
-    def getProfileFromUser(self):
-        """Return user Profile from datastore, creating new one if non-existent."""
+    def profile_from_user(self):
+        """
+        Return user Profile from datastore, creating new one if non-existent.
+        :return: Profile model for the current endpoint user
+        """
         # make sure user is authed
         user = endpoints.get_current_user()
         if not user:
@@ -71,24 +74,14 @@ class ProfileApi(remote.Service):
     # - - - Profile Private Methods - - - - - - - - - - - - - - - - - - -
     #
 
-    def _copyProfileToForm(self, prof):
-        """Copy relevant fields from Profile to ProfileForm."""
-        # copy relevant fields from Profile to ProfileForm
-        pf = ProfileForm()
-        for field in pf.all_fields():
-            if hasattr(prof, field.name):
-                # convert t-shirt string to Enum; just copy others
-                if field.name == 'teeShirtSize':
-                    setattr(pf, field.name, getattr(TeeShirtSize, getattr(prof, field.name)))
-                else:
-                    setattr(pf, field.name, getattr(prof, field.name))
-        pf.check_initialized()
-        return pf
-
-    def _doProfile(self, save_request=None):
-        """Get user Profile and return to user, possibly updating it first."""
+    def _do_profile(self, save_request=None):
+        """
+        Get user Profile and return to user, possibly updating it first.
+        :param save_request: ProfileForm with updates (if any) for the Profile
+        :return: ProfileForm for the current endpoints user
+        """
         # get user Profile
-        prof = self.getProfileFromUser()
+        prof = self.profile_from_user()
 
         # if saveProfile(), process user-modifyable fields
         if save_request:
@@ -104,4 +97,4 @@ class ProfileApi(remote.Service):
                         prof.put()
 
         # return ProfileForm
-        return self._copyProfileToForm(prof)
+        return prof.to_form()
