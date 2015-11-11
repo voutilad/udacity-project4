@@ -239,7 +239,7 @@ class ConferenceApi(remote.Service):
             raise endpoints.BadRequestException()
 
         prof = ProfileApi.profile_from_user()  # get user Profile
-        conf_keys = [ndb.Key(urlsafe=wsck) for wsck in prof.conferenceKeysToAttend]
+        conf_keys = prof.conferencesToAttend # Changed from original code since now we store Keys
         conferences = ndb.get_multi(conf_keys)
 
         # get organizers
@@ -502,50 +502,48 @@ class ConferenceApi(remote.Service):
         :param reg: whether to register (True) or unregister (False) the requesting User
         :return: BooleanMessage - True if successful, False if failure
         """
-        retval = None
         prof = ProfileApi.profile_from_user()  # get user Profile
 
         # check if conf exists given websafeConfKey
         # get conference; check that it exists
-        wsck = request.websafeConferenceKey
-        conf = ndb.Key(urlsafe=wsck).get()
+        c_key = ndb.Key(urlsafe=request.websafeConferenceKey)
+        conf = c_key.get()
         if not conf:
-            raise endpoints.NotFoundException(
-                'No conference found with key: %s' % wsck)
+            raise endpoints.NotFoundException('No conference found for key')
 
         # register
         if reg:
             # check if user already registered otherwise add
-            if wsck in prof.conferenceKeysToAttend:
-                raise ConflictException(
-                    "You have already registered for this conference")
+            if c_key in prof.conferencesToAttend:
+                raise ConflictException('Already registered for this conference')
 
             # check if seats avail
             if conf.seatsAvailable <= 0:
-                raise ConflictException(
-                    "There are no seats available.")
+                raise ConflictException('There are no seats available.')
 
             # register user, take away one seat
-            prof.conferenceKeysToAttend.append(wsck)
+            prof.conferencesToAttend.append(c_key)
             conf.seatsAvailable -= 1
-            retval = True
 
-        # unregister
+            # update datastore
+            prof.put()
+            conf.put()
+
+        # un-register
         else:
             # check if user already registered
-            if wsck in prof.conferenceKeysToAttend:
-
+            if c_key in prof.conferencesToAttend:
                 # unregister user, add back one seat
-                prof.conferenceKeysToAttend.remove(wsck)
+                prof.conferencesToAttend.remove(c_key)
                 conf.seatsAvailable += 1
-                retval = True
-            else:
-                retval = False
 
-        # write things back to the datastore & return
-        prof.put()
-        conf.put()
-        return BooleanMessage(data=retval)
+                # update datastore
+                prof.put()
+                conf.put()
+            else:
+                return BooleanMessage(data=False)
+
+        return BooleanMessage(data=True)
 
 
 
