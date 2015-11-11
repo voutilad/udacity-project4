@@ -240,6 +240,11 @@ class ConferenceApi(remote.Service):
 
         prof = ProfileApi.profile_from_user()  # get user Profile
         conf_keys = prof.conferencesToAttend # Changed from original code since now we store Keys
+
+        if len(conf_keys) == 0:
+            # user hasn't registered for anything, so bail out of this method
+            return ConferenceForms()
+
         conferences = ndb.get_multi(conf_keys)
 
         # get organizers
@@ -408,9 +413,6 @@ class ConferenceApi(remote.Service):
             raise endpoints.UnauthorizedException('Authorization required')
         user_id = getUserId(user)
 
-        # copy ConferenceForm/ProtoRPC Message into dict
-        data = {field.name: getattr(request, field.name) for field in request.all_fields()}
-
         # update existing conference
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
         # check that conference exists
@@ -422,6 +424,9 @@ class ConferenceApi(remote.Service):
         if user_id != conf.organizerUserId:
             raise endpoints.ForbiddenException(
                 'Only the owner can update the conference.')
+
+        # copy ConferenceForm/ProtoRPC Message into dict
+        data = {field.name: getattr(request, field.name) for field in request.all_fields()}
 
         # Not getting all the fields, so don't create a new object; just
         # copy relevant fields from ConferenceForm to Conference object

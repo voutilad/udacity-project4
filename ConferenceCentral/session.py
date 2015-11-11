@@ -116,7 +116,7 @@ class SessionApi(remote.Service):
                       http_method='POST', name='createSession')
     def createSession(self, request):
         """Creates a new session. Only available  to the organizer of the conference"""
-        return self._createSessionObject(request)
+        return self._create_session(request)
 
     #
     # - - - Profile Public Methods - - - - - - - - - - - - - - - - - - -
@@ -157,25 +157,25 @@ class SessionApi(remote.Service):
 
         # see if the wishlist exists
         wishlist = ConferenceWishlist().query(ancestor=prof.key) \
-            .filter(ConferenceWishlist.conferenceKey == session.key.parent().urlsafe()) \
+            .filter(ConferenceWishlist.conferenceKey == session.conferenceKey) \
             .get()
 
         # User requested to add to the wishlist, so create if needed
         if not wishlist:
             if add:
                 # need to create the wishlist first
-                conf_key = session.key.parent().urlsafe()
+                conf_key = session.key.parent()
                 wishlist = ConferenceWishlist(conferenceKey=conf_key, parent=prof.key)
             else:
                 # remove request, but no wishlist!
                 raise endpoints.NotFoundException('Nothing wishlisted for Conference')
 
         # update wishlist by adding/removing session key
-        wssk = session.key.urlsafe()
-        if wssk not in wishlist.sessionKeys:
+        s_key = session.key
+        if s_key not in wishlist.sessionKeys:
             if add:
                 # add the key
-                wishlist.sessionKeys.append(wssk)
+                wishlist.sessionKeys.append(s_key)
                 wishlist.put()
             else:
                 # can't remove a nonexistant key
@@ -187,7 +187,7 @@ class SessionApi(remote.Service):
                 return BooleanMessage(data=False)
             else:
                 # remove key from wishlist
-                wishlist.sessionKeys.remove(wssk)
+                wishlist.sessionKeys.remove(s_key)
 
                 # if wishlist is empty, remove the wishlist. else just update.
                 if len(wishlist.sessionKeys) == 0:
@@ -198,7 +198,7 @@ class SessionApi(remote.Service):
         return BooleanMessage(data=True)
 
 
-    def _createSessionObject(self, request):
+    def _create_session(self, request):
         """
         Creates a new Session object and inserts it into storage returning the created value.
         :param request:
@@ -215,7 +215,7 @@ class SessionApi(remote.Service):
         # TODO: GENERICIZE THE RPC/NBD TRANSLATION?!
         # copy ConferenceForm/ProtoRPC Message into dict
         data = {field.name: getattr(request, field.name) for field in request.all_fields()}
-        del data['websafeConfKey']
+        del data['websafeConfKey'] # we store the converted value
 
         # add default values for those missing (both data model & outbound Message)
         for df in SESSION_DEFAULTS:
@@ -224,8 +224,10 @@ class SessionApi(remote.Service):
                 setattr(request, df, SESSION_DEFAULTS[df])
 
         # TODO: validate session dates are sane i.e. within the start/end of the conf.
-        data['date'] = datetime.strptime(data['date'][:10], '%Y-%m-%d').date()
-        data['startTime'] = datetime.strptime(data['startTime'][:6], '%H:%M').time()
+        if data['date']:
+            data['date'] = datetime.strptime(data['date'][:10], '%Y-%m-%d').date()
+        if data['startTime']:
+            data['startTime'] = datetime.strptime(data['startTime'][:6], '%H:%M').time()
 
         # fetch the key of the ancestor conference
         conf_key = ndb.Key(urlsafe=request.websafeConfKey)
@@ -242,7 +244,7 @@ class SessionApi(remote.Service):
         s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
         s_key = ndb.Key(Session, s_id, parent=conf_key)
         data['key'] = s_key
-        data['conferenceKey'] = request.websafeConfKey
+        data['conferenceKey'] = conf_key
 
         # create and persist the Session
         # TODO: email organizer?

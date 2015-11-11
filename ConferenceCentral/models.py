@@ -20,6 +20,18 @@ class ConflictException(endpoints.ServiceException):
     """ConflictException -- exception mapped to HTTP 409 response"""
     http_status = httplib.CONFLICT
 
+# - - - - - - - -
+
+class StringMessage(messages.Message):
+    """StringMessage-- outbound (single) string message"""
+    data = messages.StringField(1, required=True)
+
+
+class BooleanMessage(messages.Message):
+    """BooleanMessage-- outbound Boolean value message"""
+    data = messages.BooleanField(1)
+
+# - - - - - - - -
 
 class Profile(ndb.Model):
     """Profile -- User profile object"""
@@ -34,14 +46,11 @@ class Profile(ndb.Model):
         :return: ProfileForm
         """
         pf = ProfileForm()
-        for field in pf.all_fields():
-            if hasattr(self, field.name):
-                # convert t-shirt string to Enum; just copy others
-                if field.name == 'teeShirtSize':
-                    setattr(pf, field.name, getattr(TeeShirtSize, getattr(self, field.name)))
-                else:
-                    setattr(pf, field.name, getattr(self, field.name))
-        pf.check_initialized()
+        pf.displayName = self.displayName
+        pf.mainEmail = self.mainEmail
+        pf.conferenceKeysToAttend = [key.urlsafe() for key in self.conferencesToAttend]
+        pf.teeShirtSize = TeeShirtSize.lookup_by_name(self.teeShirtSize)
+
         return pf
 
 
@@ -57,16 +66,6 @@ class ProfileForm(messages.Message):
     mainEmail = messages.StringField(2)
     teeShirtSize = messages.EnumField('TeeShirtSize', 3)
     conferenceKeysToAttend = messages.StringField(4, repeated=True)
-
-
-class StringMessage(messages.Message):
-    """StringMessage-- outbound (single) string message"""
-    data = messages.StringField(1, required=True)
-
-
-class BooleanMessage(messages.Message):
-    """BooleanMessage-- outbound Boolean value message"""
-    data = messages.BooleanField(1)
 
 
 class Conference(ndb.Model):
@@ -103,6 +102,7 @@ class Conference(ndb.Model):
         cf.check_initialized()
         return cf
 
+
 class ConferenceForm(messages.Message):
     """ConferenceForm -- Conference outbound form message"""
     name = messages.StringField(1)
@@ -123,10 +123,11 @@ class ConferenceForms(messages.Message):
     """ConferenceForms -- multiple Conference outbound form message"""
     items = messages.MessageField(ConferenceForm, 1, repeated=True)
 
+
 class ConferenceWishlist(ndb.Model):
     """ConferenceWishlist --- maintains list of keys of favorite sessions for a given conference"""
-    conferenceKey = ndb.StringProperty(required=True)
-    sessionKeys = ndb.StringProperty(repeated=True)
+    conferenceKey = ndb.KeyProperty(kind='Conference', required=True)
+    sessionKeys = ndb.KeyProperty(kind='Session', repeated=True)
 
     def to_form(self):
         """
@@ -134,9 +135,21 @@ class ConferenceWishlist(ndb.Model):
         :return: ConferenceWishlistForm
         """
         wf = WishlistForm()
-        wf.websafeConfKey = self.conferenceKey
-        wf.websafeSessionKeys = self.sessionKeys
+        wf.websafeConfKey = self.conferenceKey.urlsafe()
+        wf.websafeSessionKeys = self.sessionKeys.urlsafe()
         return wf
+
+
+class WishlistForm(messages.Message):
+    """WishlistForm -- RPC message for containing wishlist sessions"""
+    websafeConfKey = messages.StringField(1)
+    websafeSessionKeys = messages.StringField(2, repeated=True)
+
+
+class WishlistForms(messages.Message):
+    """WishlistForms -- RPC message containing multiple WishlistForm's for response"""
+    items = messages.MessageField(WishlistForm, 1, repeated=True)
+
 
 class SessionType(messages.Enum):
     """SessionType -- type of session being held at conference"""
@@ -144,16 +157,17 @@ class SessionType(messages.Enum):
     KEYNOTE = 2
     WORKSHOP = 3
 
+
 class Session(ndb.Model):
     """Session -- Session object"""
     name = ndb.StringProperty(required=True)
     highlights = ndb.StringProperty(repeated=True)
     speaker = ndb.StringProperty()
     duration = ndb.IntegerProperty()
-    typeOfSession = msgprop.EnumProperty(SessionType, required=True, indexed=True) #EnumField: SessionType    date = ndb.DateProperty()
+    typeOfSession = msgprop.EnumProperty(SessionType, required=True, indexed=True)
     date = ndb.DateProperty()
     startTime = ndb.TimeProperty()
-    conferenceKey = ndb.StringProperty()
+    conferenceKey = ndb.KeyProperty(kind='Conference')
 
     def to_form(self):
         """
@@ -169,9 +183,10 @@ class Session(ndb.Model):
                 else:
                     setattr(sf, field.name, getattr(self, field.name))
             elif field.name == 'websafeConfKey':
-                setattr(sf, field.name, self.key.urlsafe())
-
+                setattr(sf, field.name, self.conferenceKey.urlsafe())
+        setattr(sf, 'websafeKey', self.key.urlsafe())
         return sf
+
 
 class SessionForm(messages.Message):
     """SessionForm -- RPC message containing details about a Session"""
@@ -183,24 +198,16 @@ class SessionForm(messages.Message):
     date = messages.StringField(6)
     startTime = messages.StringField(7)
     websafeConfKey = messages.StringField(8)
+    websafeKey = messages.StringField(9)
 
 class SessionForms(messages.Message):
     """SessionForms -- multiple SessionForm's"""
     items = messages.MessageField(SessionForm, 1, repeated=True)
 
+
 class Speaker(messages.Message):
     name = messages.StringField(1, required=True)
     title = messages.StringField(2)
-
-class WishlistForm(messages.Message):
-    """WishlistForm -- RPC message for containing wishlist sessions"""
-    websafeConfKey = messages.StringField(1)
-    websafeSessionKeys = messages.StringField(2, repeated=True)
-
-
-class WishlistForms(messages.Message):
-    """WishlistForms -- RPC message containing multiple WishlistForm's for response"""
-    items = messages.MessageField(WishlistForm, 1, repeated=True)
 
 
 class TeeShirtSize(messages.Enum):
@@ -221,10 +228,14 @@ class TeeShirtSize(messages.Enum):
     XXXL_M = 14
     XXXL_W = 15
 
+
+# - - - - - - - - - - - - - - - - - - - - - -
+
 class SessionQueryForm(messages.Message):
     """SessionQueryForm -- Session query inbound form message"""
     websafeConfKey = messages.StringField(1)
     typeOfSession = messages.EnumField('SessionType', 2)
+
 
 class ConferenceQueryForm(messages.Message):
     """ConferenceQueryForm -- Conference query inbound form message"""
