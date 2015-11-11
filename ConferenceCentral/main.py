@@ -13,10 +13,17 @@ modified by voutilad@gmail.com for Udacity FullStackDev Project 4
 """
 
 import webapp2
+import endpoints
 from google.appengine.api import app_identity
 from google.appengine.api import mail
+from session import SessionApi
 from conference import ConferenceApi
 
+# - - - Endpoints Client Api - - -
+
+API_SERVER = endpoints.api_server([ConferenceApi, SessionApi])  # register API
+
+# - - - Backend Api - - -
 
 class SetAnnouncementHandler(webapp2.RequestHandler):
     def get(self):
@@ -38,8 +45,8 @@ class SendConfirmationEmailHandler(webapp2.RequestHandler):
                 'conferenceInfo')
         )
 
-
-app = webapp2.WSGIApplication([
+APP = webapp2.WSGIApplication([
     ('/crons/set_announcement', SetAnnouncementHandler),
     ('/tasks/send_confirmation_email', SendConfirmationEmailHandler),
 ], debug=True)
+
