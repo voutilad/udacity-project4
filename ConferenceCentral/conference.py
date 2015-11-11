@@ -201,8 +201,14 @@ class ConferenceApi(remote.Service):
         return wf
 
     # - - - Session objects - - - - - - - - - - - - - - - - -
-    @endpoints.method(CONF_GET_REQUEST, SessionForms,
-                      path='conference/{websafeConferenceKey}/sessions',
+    @endpoints.method(SessionQueryForm, SessionForms, path='querySessions',
+                      http_method='POST', name='querySessions')
+    def querySessions(self, request):
+        """Queries Session objects in datastore"""
+
+        return SessionForms(items=[])
+
+    @endpoints.method(CONF_GET_REQUEST, SessionForms, path='conference/{websafeConferenceKey}/sessions',
                       http_method='GET', name='getConferenceSessions')
     def getConferenceSessions(self, request):
         """Given a conference, return all sessions
@@ -508,10 +514,8 @@ class ConferenceApi(remote.Service):
             formatted_filters.append(filtr)
         return (inequality_field, formatted_filters)
 
-    @endpoints.method(ConferenceQueryForms, ConferenceForms,
-                      path='queryConferences',
-                      http_method='POST',
-                      name='queryConferences')
+    @endpoints.method(ConferenceQueryForms, ConferenceForms, path='queryConferences',
+                      http_method='POST', name='queryConferences')
     def queryConferences(self, request):
         """Query for conferences."""
         conferences = self._getQuery(request)
@@ -746,6 +750,5 @@ class ConferenceApi(remote.Service):
         return ConferenceForms(
             items=[self._copyConferenceToForm(conf, "") for conf in q]
         )
-
 
 api = endpoints.api_server([ConferenceApi])  # register API
