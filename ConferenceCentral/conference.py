@@ -55,22 +55,6 @@ CONF_DEFAULTS = {
     "topics": ["Default", "Topic"],
 }
 
-OPERATORS = {
-    'EQ': '=',
-    'GT': '>',
-    'GTEQ': '>=',
-    'LT': '<',
-    'LTEQ': '<=',
-    'NE': '!='
-}
-
-FIELDS = {
-    'CITY': 'city',
-    'TOPIC': 'topics',
-    'MONTH': 'month',
-    'MAX_ATTENDEES': 'maxAttendees',
-}
-
 CONF_GET_REQUEST = endpoints.ResourceContainer(
     VoidMessage,
     websafeConferenceKey=messages.StringField(1),
@@ -207,7 +191,15 @@ class ConferenceApi(remote.Service):
         :param request: ConferenceQueryForms with one or many ConferenceQueryForm's
         :return: ConferenceForms with matching ConferenceForm's, if any
         """
-        conferences = self._query(request)
+        # convert message types for now until we fix the js client side logic
+        query_filters = [
+            queryutil.QueryFilter(
+                field=f.field,
+                operator=queryutil.QueryOperator.lookup_by_name(f.operator),
+                value=f.value) for f in request.filters]
+        query_form = queryutil.QueryForm(target=queryutil.QueryTarget.CONFERENCE,
+                                         filters=query_filters)
+        conferences = queryutil.query(query_form)
 
         # need to fetch organiser displayName from profiles
         # get all keys and use get_multi for speed
@@ -455,54 +447,7 @@ class ConferenceApi(remote.Service):
         :param request:
         :return:
         """
-        q = Conference.query()
-        inequality_filter, filters = self._format_filters(request.filters)
-
-        # If exists, sort on inequality filter first
-        if not inequality_filter:
-            q = q.order(Conference.name)
-        else:
-            q = q.order(ndb.GenericProperty(inequality_filter))
-            q = q.order(Conference.name)
-
-        for filtr in filters:
-            if filtr["field"] in ["month", "maxAttendees"]:
-                filtr["value"] = int(filtr["value"])
-            formatted_query = ndb.query.FilterNode(filtr["field"], filtr["operator"], filtr["value"])
-            q = q.filter(formatted_query)
-        return q
-
-    @staticmethod
-    def _format_filters(filters):
-        """
-        Parse, check validity and format user supplied filters.
-        :param filters:
-        :return:
-        """
-        formatted_filters = []
-        inequality_field = None
-
-        for f in filters:
-            filtr = {field.name: getattr(f, field.name) for field in f.all_fields()}
-
-            try:
-                filtr["field"] = FIELDS[filtr["field"]]
-                filtr["operator"] = OPERATORS[filtr["operator"]]
-            except KeyError:
-                raise endpoints.BadRequestException("Filter contains invalid field or operator.")
-
-            # Every operation except "=" is an inequality
-            if filtr["operator"] != "=":
-                # check if inequality operation has been used in previous filters
-                # disallow the filter if inequality was performed on a different field before
-                # track the field on which the inequality operation is performed
-                if inequality_field and inequality_field != filtr["field"]:
-                    raise endpoints.BadRequestException("Inequality filter is allowed on only one field.")
-                else:
-                    inequality_field = filtr["field"]
-
-            formatted_filters.append(filtr)
-        return inequality_field, formatted_filters
+        return queryutil.query(request)
 
     @ndb.transactional(xg=True)
     def _register(self, request, reg=True):

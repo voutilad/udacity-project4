@@ -77,7 +77,7 @@ class QueryForm(messages.Message):
     sort_by = messages.StringField(4)
 
 
-def query(query_form):
+def query(query_form, ancestor=None):
     """
     Return formatted query from the submitted filters.
     :param request: QueryForm message
@@ -91,7 +91,7 @@ def query(query_form):
     inequality_filter, filters = __format_filters(query_form.filters, kind)
 
     # If exists, sort on inequality filter first
-    q = kind.query()
+    q = kind.query(ancestor=ancestor)
     if not inequality_filter:
         q = q.order(SORT_MAP[kind])
     else:
