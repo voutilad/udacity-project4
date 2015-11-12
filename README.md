@@ -23,6 +23,17 @@ As a result, I had to update some of the javascript using the Google Client API 
 Also, [app.yaml] is updated now to account for the changes and the _endpoints.api_server_ call is now isolated from 
 the configuration of the API (now located in [settings.py]).
 
+
+The Query Problem
+---
+The question of 
+
+Instead, for fields with finite cardinality, 
+`````
+BadRequestError: Only one inequality filter per query is supported. Encountered both typeOfSession and 
+startTime
+`````
+
 ### 
 
 References:

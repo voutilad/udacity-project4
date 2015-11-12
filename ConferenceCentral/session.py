@@ -13,6 +13,7 @@ from datetime import datetime
 import endpoints
 from google.appengine.ext import ndb
 from protorpc import message_types
+from protorpc.message_types import VoidMessage
 from protorpc import messages
 from protorpc import remote
 
@@ -27,21 +28,20 @@ from models import WishlistForm, WishlistForms
 from settings import API
 from profile import ProfileApi
 from utils import getUserId, get_from_webkey
+import queryutil
 
 SESSION_DEFAULTS = {
     'duration': 60,
     'typeOfSession': SessionType.LECTURE
 }
 
-VOID = message_types.VoidMessage
-
 WISHLIST_REQUEST = endpoints.ResourceContainer(
-    VOID,
+    VoidMessage,
     websafeSessionKey=messages.StringField(1)
 )
 
 CONF_GET_REQUEST = endpoints.ResourceContainer(
-    VOID,
+    VoidMessage,
     websafeConferenceKey=messages.StringField(1),
 )
 
@@ -80,7 +80,7 @@ class SessionApi(remote.Service):
         """
         return self._wishlist(request, False)
 
-    @endpoints.method(VOID, WishlistForms, path='wishlists',
+    @endpoints.method(VoidMessage, WishlistForms, path='wishlists',
                       http_method='GET', name='getWishlists')
     def getWishlists(self, request):
         """
@@ -95,7 +95,7 @@ class SessionApi(remote.Service):
             items=[wishlist.to_form() for wishlist in wishlists]
         )
 
-    @endpoints.method(SessionQueryForm, SessionForms, path='sessions/query',
+    @endpoints.method(VoidMessage, SessionForms, path='sessions/query',
                       http_method='POST', name='querySessions')
     def querySessions(self, request):
         """
@@ -103,8 +103,13 @@ class SessionApi(remote.Service):
         :param request:
         :return:
         """
+        stupid = ndb.query.FilterNode('typeOfSession', 'in', [1, 2])
+        print stupid
+        sessions = Session.query()\
+            .filter(stupid)\
+            .filter(Session.startTime < datetime.strptime('19:00', '%H:%S').time())
 
-        return SessionForms(items=[])
+        return SessionForms(items=[s.to_form() for s in sessions])
 
 
     @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/type',
@@ -132,13 +137,8 @@ class SessionApi(remote.Service):
         :param request:
         :return:
         """
-        wsck = request.websafeConfKey
-        c_key = ndb.Key(urlsafe=wsck)
-        if not c_key.get():
-            raise endpoints.NotFoundException('No conference found with key: %s' % wsck)
 
-        sessions = Session.query(ancestor=c_key) \
-            .filter(Session.speaker == request.speaker)
+        sessions = Session.query().filter(Session.speaker == request.speaker)
 
         return SessionForms(items=[session.to_form() for session in sessions])
 
@@ -155,26 +155,7 @@ class SessionApi(remote.Service):
     #
     # - - - Profile Public Methods - - - - - - - - - - - - - - - - - - -
     #
-    @staticmethod
-    def session_to_form(session):
-        """
-        Copy relevant fields from Session to SessionForm.
-        :param session:
-        :return:
-        """
-        # TODO: genericize!!!
-        sf = SessionForm()
-        for field in sf.all_fields():
-            if hasattr(session, field.name):
-                # matching/common fields between classes
-                if field.name in ['date', 'startTime']:
-                    setattr(sf, field.name, str(session.date))
-                else:
-                    setattr(sf, field.name, getattr(session, field.name))
-            elif field.name == 'websafeConfKey':
-                setattr(sf, field.name, session.key.urlsafe())
 
-        return sf
     #
     # - - - Profile Private Methods - - - - - - - - - - - - - - - - - - -
     #

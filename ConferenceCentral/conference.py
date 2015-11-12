@@ -37,7 +37,6 @@ from utils import getUserId
 
 import queryutil
 from profile import ProfileApi
-from session import SessionApi
 
 __author__ = 'voutilad@gmail.com (Dave Voutila)'
 
@@ -159,7 +158,7 @@ class ConferenceApi(remote.Service):
 
         sessions = Session.query(ancestor=conf_key)
 
-        return SessionForms(items=[SessionApi.session_to_form(session) for session in sessions])
+        return SessionForms(items=[s.to_form() for s in sessions])
 
     @endpoints.method(CONF_GET_REQUEST, SessionForms, path='conference/{websafeConferenceKey}/wishlist',
                       http_method='GET', name='getSessionsInWishlist')
@@ -181,7 +180,7 @@ class ConferenceApi(remote.Service):
         s_keys = [ndb.Key(urlsafe=sessionKey) for sessionKey in wishlist.sessionKeys]
         sessions = ndb.get_multi(s_keys)
 
-        return SessionForms(items=[SessionApi.session_to_form(s) for s in sessions])
+        return SessionForms(items=[s.to_form for s in sessions])
 
     @endpoints.method(ConferenceQueryForms, ConferenceForms, path='conferences/query',
                       http_method='POST', name='queryConferences')

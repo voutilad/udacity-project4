@@ -37,6 +37,7 @@ functionality will be testable via APIs Explorer. More in-depth explanation.
   * Solve the following query related problem: Let’s say that you don't like workshops and you don't like sessions 
   after 7 pm. How would you handle a query for all non-workshop sessions before 7 pm? What is the problem for 
   implementing this query? What ways to solve it did you think of?
+    * Option 1: Add lots of equalities for the bounded field i.e. typeOfSession [!WORKSHOP <--> OR(
 
 7. Add a Task
   * When adding a new session to a conference, determine whether or not the session's speaker should be the new 

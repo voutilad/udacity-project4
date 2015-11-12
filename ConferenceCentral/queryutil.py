@@ -79,6 +79,7 @@ class QueryForm(messages.Message):
     filters = messages.MessageField(QueryFilter, 2, repeated=True)
     num_results = messages.IntegerField(3, default=20)
     sort_by = messages.StringField(4)
+    ancestorWebSafeKey = messages.StringField(5)
 
 
 def query(query_form, ancestor=None):
@@ -193,6 +194,9 @@ def __format_filters(query_filters, kind):
 
         # Every operation except "=" is an inequality
         if filtr["operator"] != "=":
+            # TODO: handle operator of != on a finite field aka our enum fields!
+            # Remember that you need to do ndb.query.FilterNode('typeOfSession', 'in', [1, 2])
+
             # check if inequality operation has been used in previous filters
             # disallow the filter if inequality was performed on a different field before
             # track the field on which the inequality operation is performed
@@ -203,3 +207,12 @@ def __format_filters(query_filters, kind):
 
         formatted_filters.append(filtr)
     return inequality_field, formatted_filters
+
+
+def __convert_inequality(enum_type, value):
+    """
+    Creates the proper set inequality for filter on an ndb.EnumProperty
+    :param enum_type: ndb.EnumProperty used in the filter
+    :param value: value of the original inequality
+    :return: filter dict {
+    """
