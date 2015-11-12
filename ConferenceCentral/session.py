@@ -48,7 +48,13 @@ CONF_GET_REQUEST = endpoints.ResourceContainer(
 
 @API.api_class(resource_name='sessions')
 class SessionApi(remote.Service):
-    """Session API for ConferenceCentral"""
+    """
+    Session API for ConferenceCentral
+
+    API Conventions:
+        /session/* - operates on or returns a single Session record
+        /sessions/* - operates on or returns multiple Session records
+    """
     #
     # - - - Endpoints - - - - - - - - - - - - - - - - - - -
     #
@@ -58,7 +64,7 @@ class SessionApi(remote.Service):
                       http_method='PUT', name='addSessionToWishlist')
     def addSessionToWishlist(self, request):
         """
-        Add a Session to a conference Wishlist
+        Add a Session to a ConferenceWishlist
         :param request:
         :return:
         """
@@ -68,7 +74,9 @@ class SessionApi(remote.Service):
                       http_method='DELETE', name='removeSessionFromWishlist')
     def removeSessionFromWishlist(self, request):
         """
-        Removes a Session from a user's wishlist for the containing Conference
+        Remove a Session from a ConferenceWishlist
+        :param request:
+        :return:
         """
         return self._wishlist(request, False)
 
@@ -77,6 +85,8 @@ class SessionApi(remote.Service):
     def getWishlists(self, request):
         """
         Endpoint for retrieving all wishlists for a requesting user
+        :param request:
+        :return:
         """
         # TODO: add max records and sortability
         prof = ProfileApi.profile_from_user()  # get user Profile
@@ -88,7 +98,11 @@ class SessionApi(remote.Service):
     @endpoints.method(SessionQueryForm, SessionForms, path='sessions/query',
                       http_method='POST', name='querySessions')
     def querySessions(self, request):
-        """Queries Session objects in datastore"""
+        """
+        Queries Session objects in datastore
+        :param request:
+        :return:
+        """
 
         return SessionForms(items=[])
 
@@ -96,7 +110,11 @@ class SessionApi(remote.Service):
     @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/type',
                       http_method='GET', name='getConferenceSessionsByType')
     def getConferenceSessionsByType(self, request):
-        """Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)"""
+        """
+        Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)
+        :param request:
+        :return:
+        """
         wsck = request.websafeConfKey
         c_key = ndb.Key(urlsafe=wsck)
         if not c_key.get():
@@ -109,13 +127,21 @@ class SessionApi(remote.Service):
 
     @endpoints.method(message_types.VoidMessage, SessionForms, path='sessions/filter/speaker')
     def getSessionsBySpeaker(self, request):
-        """Given a speaker, return all sessions given by this particular speaker, across all conferences"""
+        """
+        Given a speaker, return all sessions given by this particular speaker, across all conferences
+        :param request:
+        :return:
+        """
         pass
 
     @endpoints.method(SessionForm, SessionForm, path='session',
                       http_method='POST', name='createSession')
     def createSession(self, request):
-        """Creates a new session. Only available  to the organizer of the conference"""
+        """
+        Creates a new session. Only available to the organizer of the conference
+        :param request:
+        :return:
+        """
         return self._create_session(request)
 
     #
@@ -123,7 +149,11 @@ class SessionApi(remote.Service):
     #
     @staticmethod
     def session_to_form(session):
-        """Copy relevant fields from Session to SessionForm."""
+        """
+        Copy relevant fields from Session to SessionForm.
+        :param session:
+        :return:
+        """
         # TODO: genericize!!!
         sf = SessionForm()
         for field in sf.all_fields():
@@ -144,7 +174,7 @@ class SessionApi(remote.Service):
     @ndb.transactional(xg=True)
     def _wishlist(self, request, add=True):
         """
-
+        Transaction to add or remove Session from a ConferenceWishlist given by a WishlistRequest
         :param request: Wishlist RPC Request [VoidMessage, session key in query string]
         :param add: whether to add (True) to the wishlist or remove from a wishlist (False)
         :return: BooleanMessage - True if successful, False if failure

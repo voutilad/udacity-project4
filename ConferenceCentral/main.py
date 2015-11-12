@@ -28,14 +28,20 @@ API_SERVER = endpoints.api_server([ConferenceApi, SessionApi, ProfileApi])  # re
 
 class SetAnnouncementHandler(webapp2.RequestHandler):
     def get(self):
-        """Set Announcement in Memcache."""
+        """
+        Set announcement values in Memcache.
+        :return:
+        """
         ConferenceApi.cache_announcement()
         self.response.set_status(204)
 
 
 class SendConfirmationEmailHandler(webapp2.RequestHandler):
     def post(self):
-        """Send email confirming Conference creation."""
+        """
+        Send email confirming Conference creation.
+        :return:
+        """
         mail.send_mail(
             'noreply@%s.appspotmail.com' % (
                 app_identity.get_application_id()),  # from

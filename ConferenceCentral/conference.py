@@ -296,10 +296,14 @@ class ConferenceApi(remote.Service):
 
         return StringMessage(data=memcache.get(MEMCACHE_ANNOUNCEMENTS_KEY) or '')
 
-    @endpoints.method(message_types.VoidMessage, ConferenceForms, path='conferences/filterPlayground',
+    @endpoints.method(VoidMessage, ConferenceForms, path='conferences/filterPlayground',
                       http_method='GET', name='filterPlayground')
     def filter_playground(self, request):
-        """Filter Playground"""
+        """
+        Filter Playground method
+        :param request:
+        :return:
+        """
         if not isinstance(request, message_types.VoidMessage):
             raise endpoints.BadRequestException()
 
@@ -426,7 +430,7 @@ class ConferenceApi(remote.Service):
                 'Only the owner can update the conference.')
 
         # copy ConferenceForm/ProtoRPC Message into dict
-        data = {field.name: getattr(request, field.name) for field in request.all_fields()}
+        # data = {field.name: getattr(request, field.name) for field in request.all_fields()}
 
         # Not getting all the fields, so don't create a new object; just
         # copy relevant fields from ConferenceForm to Conference object
@@ -468,7 +472,8 @@ class ConferenceApi(remote.Service):
             q = q.filter(formatted_query)
         return q
 
-    def _format_filters(self, filters):
+    @staticmethod
+    def _format_filters(filters):
         """
         Parse, check validity and format user supplied filters.
         :param filters:
@@ -497,7 +502,7 @@ class ConferenceApi(remote.Service):
                     inequality_field = filtr["field"]
 
             formatted_filters.append(filtr)
-        return (inequality_field, formatted_filters)
+        return inequality_field, formatted_filters
 
     @ndb.transactional(xg=True)
     def _register(self, request, reg=True):
@@ -549,7 +554,3 @@ class ConferenceApi(remote.Service):
                 return BooleanMessage(data=False)
 
         return BooleanMessage(data=True)
-
-
-
-

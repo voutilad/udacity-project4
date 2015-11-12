@@ -16,11 +16,14 @@ from protorpc import messages
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
 
+
 class ConflictException(endpoints.ServiceException):
     """ConflictException -- exception mapped to HTTP 409 response"""
     http_status = httplib.CONFLICT
 
+
 # - - - - - - - -
+
 
 class StringMessage(messages.Message):
     """StringMessage-- outbound (single) string message"""
@@ -30,6 +33,7 @@ class StringMessage(messages.Message):
 class BooleanMessage(messages.Message):
     """BooleanMessage-- outbound Boolean value message"""
     data = messages.BooleanField(1)
+
 
 # - - - - - - - -
 
@@ -199,6 +203,7 @@ class SessionForm(messages.Message):
     startTime = messages.StringField(7)
     websafeConfKey = messages.StringField(8)
     websafeKey = messages.StringField(9)
+
 
 class SessionForms(messages.Message):
     """SessionForms -- multiple SessionForm's"""

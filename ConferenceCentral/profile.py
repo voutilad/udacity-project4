@@ -8,7 +8,7 @@ profile.py -- Udacity conference server-side Python App Engine API;
 
 import endpoints
 from google.appengine.ext import ndb
-from protorpc import message_types
+from protorpc.message_types import VoidMessage
 from protorpc import remote
 
 from models import Profile
@@ -28,7 +28,7 @@ class ProfileApi(remote.Service):
     # - - - Endpoints - - - - - - - - - - - - - - - - - - -
     #
 
-    @endpoints.method(message_types.VoidMessage, ProfileForm,
+    @endpoints.method(VoidMessage, ProfileForm,
                       path='profile', http_method='GET', name='getProfile')
     def getProfile(self, request):
         """Return user profile."""
