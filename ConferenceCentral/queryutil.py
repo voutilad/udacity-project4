@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-"""query.py
+"""queryutil.py
 
 Logic related to querying the ConferenceCentral object model.
 
 """
-import httplib
 import endpoints
 from protorpc import messages
 from protorpc.messages import FieldList
@@ -63,7 +62,7 @@ class QueryFilter(messages.Message):
     Query object containing target field, operator, and value
     """
     field = messages.StringField(1, required=True)
-    operator = messages.MessageField(QueryOperator, 2, required=True)
+    operator = messages.EnumField(QueryOperator, 2, required=True)
     value = messages.StringField(3, required=True)
 
 
@@ -72,7 +71,7 @@ class QueryForm(messages.Message):
     QueryForm containing one or many QueryMessages as query filters, target kind (e.g. 'Conference'), and the
     max number of results to return.
     """
-    target = messages.EnumProperty(QueryTarget, 1, required=True)
+    target = messages.EnumField(QueryTarget, 1, required=True)
     filters = messages.MessageField(QueryFilter, 2, repeated=True)
     num_results = messages.IntegerField(3, default=20)
     sort_by = messages.StringField(4)
@@ -163,28 +162,28 @@ def __get_field(kind, field):
         raise KeyError('not a supported kind: %s' % kind)
 
 
-def __format_filters(filters, kind):
+def __format_filters(query_filters, kind):
     """
     Parse, check validity and format user supplied filters.
-    :param filters: list of QueryFilters to process
+    :param query_filters: list of QueryFilters to process
     :param filters: entity kind the query is targeting
     :return: tuple of (processed inequality filter, formatted filters (as list of dicts))
     """
-    if not isinstance(filters, FieldList):
-        raise TypeError('expected %s, but got %s' % (type(FieldList), type(filters)))
+    if not isinstance(query_filters, FieldList):
+        raise TypeError('expected %s, but got %s' % (type(FieldList), type(query_filters)))
 
     formatted_filters = []
     inequality_field = None
 
-    for f in filters:
-        if not isinstance(f, QueryFilter):
-            raise TypeError('expected %s, but got %s' % (QueryFilter, f))
+    for qf in query_filters:
+        if not isinstance(qf, QueryFilter):
+            raise TypeError('expected %s, but got %s' % (QueryFilter, qf))
 
-        filtr = {'value': f.value}
+        filtr = {'value': qf.value}
 
         try:
-            filtr['field'] = __get_field(kind, filtr["field"])
-            filtr['operator'] = __get_operator(f.operator)
+            filtr['field'] = __get_field(kind, qf.field)
+            filtr['operator'] = __get_operator(qf.operator)
         except KeyError:
             raise endpoints.BadRequestException("Filter contains invalid field or operator.")
 
@@ -193,10 +192,10 @@ def __format_filters(filters, kind):
             # check if inequality operation has been used in previous filters
             # disallow the filter if inequality was performed on a different field before
             # track the field on which the inequality operation is performed
-            if inequality_field and inequality_field != filtr["field"]:
-                raise endpoints.BadRequestException("Inequality filter is allowed on only one field.")
+            if inequality_field and inequality_field != filtr['field']:
+                raise endpoints.BadRequestException('Inequality filter is allowed on only one field.')
             else:
-                inequality_field = filtr["field"]
+                inequality_field = filtr['field']
 
         formatted_filters.append(filtr)
     return inequality_field, formatted_filters

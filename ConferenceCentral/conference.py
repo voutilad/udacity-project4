@@ -35,6 +35,7 @@ from models import StringMessage
 from settings import API
 from utils import getUserId
 
+import queryutil
 from profile import ProfileApi
 from session import SessionApi
 
@@ -307,19 +308,18 @@ class ConferenceApi(remote.Service):
         if not isinstance(request, message_types.VoidMessage):
             raise endpoints.BadRequestException()
 
-        q = Conference.query()
-        # field = "city"
-        # operator = "="
-        # value = "London"
-        # f = ndb.query.FilterNode(field, operator, value)
-        # q = q.filter(f)
-        q = q.filter(Conference.city == "London")
-        q = q.filter(Conference.topics == "Medical Innovations")
-        q = q.filter(Conference.month == 6)
-
-        return ConferenceForms(
-            items=[conf.to_form() for conf in q]
+        form = queryutil.QueryForm()
+        form.target = queryutil.QueryTarget.CONFERENCE
+        qfilter = queryutil.QueryFilter(
+            field='CITY',
+            operator=queryutil.QueryOperator.EQ,
+            value='London'
         )
+        form.filters = [qfilter]
+
+        q = queryutil.query(form)
+
+        return ConferenceForms(items=[conf.to_form() for conf in q])
 
     #
     # - - - Conference Public Methods - - - - - - - - - - - - - - - - - - -
