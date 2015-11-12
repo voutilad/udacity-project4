@@ -125,14 +125,22 @@ class SessionApi(remote.Service):
 
         return SessionForms(items=[session.to_form() for session in sessions])
 
-    @endpoints.method(message_types.VoidMessage, SessionForms, path='sessions/filter/speaker')
+    @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/speaker')
     def getSessionsBySpeaker(self, request):
         """
         Given a speaker, return all sessions given by this particular speaker, across all conferences
         :param request:
         :return:
         """
-        pass
+        wsck = request.websafeConfKey
+        c_key = ndb.Key(urlsafe=wsck)
+        if not c_key.get():
+            raise endpoints.NotFoundException('No conference found with key: %s' % wsck)
+
+        sessions = Session.query(ancestor=c_key) \
+            .filter(Session.speaker == request.speaker)
+
+        return SessionForms(items=[session.to_form() for session in sessions])
 
     @endpoints.method(SessionForm, SessionForm, path='session',
                       http_method='POST', name='createSession')
@@ -246,6 +254,7 @@ class SessionApi(remote.Service):
         # copy ConferenceForm/ProtoRPC Message into dict
         data = {field.name: getattr(request, field.name) for field in request.all_fields()}
         del data['websafeConfKey'] # we store the converted value
+        del data['websafeKey']
 
         # add default values for those missing (both data model & outbound Message)
         for df in SESSION_DEFAULTS:

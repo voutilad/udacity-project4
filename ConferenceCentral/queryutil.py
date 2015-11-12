@@ -9,7 +9,7 @@ import endpoints
 from protorpc import messages
 from protorpc.messages import FieldList
 from google.appengine.ext import ndb
-from models import Conference, Session, Profile
+from models import Conference, Session, Profile, ConferenceWishlist
 
 __author__ = 'voutilad@gmail.com (Dave Voutila)'
 
@@ -26,11 +26,15 @@ FIELD_MAP = {
     Profile: {
         'SHIRT': 'teeShirtSize'
     },
-    Session : {
+    Session: {
         'TYPE': 'typeOfSession',
         'DATE': 'date',
         'START_TIME': 'startTime',
         'DURATION' : 'duration'
+    },
+    ConferenceWishlist: {
+        'CONF_KEY': 'conferenceKeys',
+        'SESSION_KEYS': 'sessionKeys'
     }
 }
 

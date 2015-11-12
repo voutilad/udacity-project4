@@ -240,7 +240,7 @@ class SessionQueryForm(messages.Message):
     """SessionQueryForm -- Session query inbound form message"""
     websafeConfKey = messages.StringField(1)
     typeOfSession = messages.EnumField('SessionType', 2)
-
+    speaker = messages.StringField(3)
 
 class ConferenceQueryForm(messages.Message):
     """ConferenceQueryForm -- Conference query inbound form message"""
