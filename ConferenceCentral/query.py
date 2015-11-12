@@ -35,6 +35,12 @@ FIELD_MAP = {
     }
 }
 
+SORT_MAP = {
+    Conference: Conference.name,
+    Session: Session.startTime,
+    Profile: Profile.displayName
+}
+
 class QueryOperator(messages.Enum):
     """QueryOperator -- enum of valid filter operators for query"""
     EQ = 1
@@ -75,24 +81,31 @@ class QueryForm(messages.Message):
 def query(query_form):
     """
     Return formatted query from the submitted filters.
-    :param request:
-    :return:
+    :param request: QueryForm message
+    :return: reference to ndb entity query object
     """
+    if not isinstance(query_form, QueryForm):
+        raise TypeError('Expected %s but got %s' % (QueryForm, query_form))
 
-    inequality_filter, filters = __format_filters(query_form.filters)
+    # get a reference to the proper model class and use it to format the filters
+    kind = __get_kind(query_form.target)
+    inequality_filter, filters = __format_filters(query_form.filters, kind)
 
     # If exists, sort on inequality filter first
+    q = kind.query()
     if not inequality_filter:
-        q = q.order(Conference.name)
+        q = q.order(SORT_MAP[kind])
     else:
         q = q.order(ndb.GenericProperty(inequality_filter))
-        q = q.order(Conference.name)
+        q = q.order(SORT_MAP[kind])
 
-    for filtr in filters:
-        if filtr["field"] in ["month", "maxAttendees"]:
-            filtr["value"] = int(filtr["value"])
-        formatted_query = ndb.query.FilterNode(filtr["field"], filtr["operator"], filtr["value"])
+    for f in filters:
+        # current casting logic. TODO: will need to be expanded upon for dates, etc.
+        if f["field"] in ["month", "maxAttendees"]:
+            f["value"] = int(f["value"])
+        formatted_query = ndb.query.FilterNode(f["field"], f["operator"], f["value"])
         q = q.filter(formatted_query)
+
     return q
 
 
@@ -150,17 +163,16 @@ def __get_field(kind, field):
         raise KeyError('not a supported kind: %s' % kind)
 
 
-def __format_filters(filters, target):
+def __format_filters(filters, kind):
     """
     Parse, check validity and format user supplied filters.
     :param filters: list of QueryFilters to process
-    :param filters: QueryTarget related to the entity kind
+    :param filters: entity kind the query is targeting
     :return: tuple of (processed inequality filter, formatted filters (as list of dicts))
     """
     if not isinstance(filters, FieldList):
         raise TypeError('expected %s, but got %s' % (type(FieldList), type(filters)))
 
-    kind = __get_kind(target)
     formatted_filters = []
     inequality_field = None
 
@@ -168,11 +180,11 @@ def __format_filters(filters, target):
         if not isinstance(f, QueryFilter):
             raise TypeError('expected %s, but got %s' % (QueryFilter, f))
 
-        filtr = {field.name: getattr(f, field.name) for field in f.all_fields()}
+        filtr = {'value': f.value}
 
         try:
-            filtr["field"] = __get_field(kind, filtr["field"])
-            filtr["operator"] = __get_operator(f.operator
+            filtr['field'] = __get_field(kind, filtr["field"])
+            filtr['operator'] = __get_operator(f.operator)
         except KeyError:
             raise endpoints.BadRequestException("Filter contains invalid field or operator.")
 
