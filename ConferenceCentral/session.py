@@ -42,6 +42,11 @@ WISHLIST_REQUEST = endpoints.ResourceContainer(
     websafeSessionKey=messages.StringField(1)
 )
 
+SESSION_PUT_REQUEST = endpoints.ResourceContainer(
+    SessionForm,
+    websafeSessionKey=messages.StringField(1)
+)
+
 CONF_GET_REQUEST = endpoints.ResourceContainer(
     VoidMessage,
     websafeConferenceKey=messages.StringField(1),
@@ -84,7 +89,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(VoidMessage, WishlistForms, path='wishlists',
                       http_method='GET', name='getWishlists')
-    def getWishlists(self, request):
+    def get_wishlists(self, request):
         """
         Endpoint for retrieving all wishlists for a requesting user
         :param request:
@@ -99,7 +104,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(VoidMessage, SessionForms, path='sessions/querydemo',
                       http_method='GET', name='querySessionsDemo')
-    def querySessions(self, request):
+    def query_demo(self, request):
         """
         Queries Session objects in datastore
         :param request:
@@ -122,7 +127,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(queryutil.QueryForm, SessionForms, path='sessions/query',
                       http_method='POST', name='querySessions')
-    def querySessions(self, request):
+    def query(self, request):
         """
         Queries Session objects in datastore
         :param request:
@@ -135,7 +140,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/type',
                       http_method='GET', name='getConferenceSessionsByType')
-    def getConferenceSessionsByType(self, request):
+    def get_by_type(self, request):
         """
         Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)
         :param request:
@@ -151,8 +156,9 @@ class SessionApi(remote.Service):
 
         return SessionForms(items=[session.to_form() for session in sessions])
 
-    @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/speaker')
-    def getSessionsBySpeaker(self, request):
+    @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/speaker',
+                      http_method='GET', name='getBySpeaker')
+    def get_by_speaker(self, request):
         """
         Given a speaker, return all sessions given by this particular speaker, across all conferences
         :param request:
@@ -164,21 +170,69 @@ class SessionApi(remote.Service):
         return SessionForms(items=[session.to_form() for session in sessions])
 
     @endpoints.method(SessionForm, SessionForm, path='session',
-                      http_method='POST', name='createSession')
-    def createSession(self, request):
+                      http_method='POST', name='create')
+    def create(self, request):
         """
-        Creates a new session. Only available to the organizer of the conference
-        :param request:
-        :return:
+        Creates a new Session. Only available to the organizer of the conference
+        :param request: SessionForm
+        :return: SessionForm
         """
-        return self._create_session(request)
+        if not request.websafeConfKey:
+            raise endpoints.BadRequestException('Conference key required.')
+
+        # try to prepare the Session instance
+        session = self.__prep_new_session(request)
+
+        # see if it exists already
+        if session.key.get():
+            raise endpoints.ConflictException(
+                'Session with key %s already exists' % session.key.urlsafe()
+            )
+
+        # deal with Speaker creation/updating
+        speakers = [self.__prepare_speaker(form) for form in request.speakers]
+
+        # try the transaction
+        request.websafeKey = self._create(session, speakers).urlsafe()
+
+        # Add a task to the queue for getting featured speaker changes
+        taskqueue.add(params={'conf_key': request.websafeConfKey},
+                      url='/tasks/update_featured_speaker')
+
+        return request
+
+    @endpoints.method(SESSION_PUT_REQUEST, SessionForm, path='session/{websafeSessionKey}',
+                      http_method='PUT', name='update')
+    def update(self, request):
+        """
+        Attempts to update an existing Session
+        :param request: SESSION_GET_REQUEST
+        :return: SessionForm
+        """
+        old_session = ndb.Key(urlsafe=request.websafeSessionKey).get()
+
+        if not old_session:
+            raise endpoints.NotFoundException('No session found for key: %s' % request.websafeKey)
+
+        new_form = SessionForm(websafeKey=request.websafeSessionKey)
+        for field in request.all_fields():
+            if field.name != 'websafeSessionKey':
+                setattr(new_form, field.name, getattr(request, field.name))
+
+        # deal with Speaker creation/updating
+        new_speakers = [self.__prepare_speaker(form) for form in new_form.speakers]
+
+        # the transaction
+        response = self._update(old_session, new_form, speakers=new_speakers).to_form()
+
+        # Add a task to the queue for getting featured speaker changes
+        taskqueue.add(params={'conf_key': request.websafeConfKey},
+                      url='/tasks/update_featured_speaker')
+
+        return response
 
     #
-    # - - - Profile Public Methods - - - - - - - - - - - - - - - - - - -
-    #
-
-    #
-    # - - - Profile Private Methods - - - - - - - - - - - - - - - - - - -
+    # - - - Session Private Methods - - - - - - - - - - - - - - - - - - -
     #
 
     @ndb.transactional(xg=True)
@@ -237,26 +291,42 @@ class SessionApi(remote.Service):
 
         return BooleanMessage(data=True)
 
-    def _create_session(self, request):
+    @ndb.transactional(xg=True)
+    def _create(self, session, speakers=None):
         """
-        Creates a new Session object and inserts it into storage returning the created value.
-        :param request:
-        :return:
+        Transaction for persisting session and speaker changes
+        :param session: Session
+        :param speakers: Speaker
+        :return: Session Key
         """
+        if speakers:
+            for speaker in speakers:
+                session.speakerKeys.append(speaker.put())
+        return session.put()
+
+    def __prep_new_session(self, session_form):
+        """
+        Prepare a new Session instance, validating Conference and User details
+        :param session_form:
+        :return: Session ready for processing of speakers
+        """
+        if not isinstance(session_form, SessionForm):
+            raise TypeError('expected SessionForm')
+
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
         user_id = getUserId(user)
 
-        if not request.name:
+        if not session_form.name:
             raise endpoints.BadRequestException("Session 'name' field required")
 
         # fetch the key of the ancestor conference
-        conf_key = ndb.Key(urlsafe=request.websafeConfKey)
+        conf_key = ndb.Key(urlsafe=session_form.websafeConfKey)
         conf = conf_key.get()
         if not conf:
             raise endpoints.NotFoundException(
-                'No conference found with key: %s' % request.websafeConfKey
+                'No conference found with key: %s' % session_form.websafeConfKey
             )
 
         # check that user is conference owner
@@ -264,38 +334,41 @@ class SessionApi(remote.Service):
             raise endpoints.ForbiddenException('Only the conference owner can create sessions.')
 
         # create Session and set up the parent key
-        session = Session.from_form(request)
-
-        # deal with Speaker creation
-        speakers = [self.__update_speaker(form) for form in request.speakers]
-
-        # try the transaction
-        request.websafeKey = self.__update_session(session, speakers).urlsafe()
-
-        # Add a task to the queue for getting featured speaker changes
-        taskqueue.add(params={'conf_key': request.websafeConfKey},
-                      url='/tasks/update_featured_speaker')
-
-        return request
+        return Session.from_form(session_form)
 
     @ndb.transactional(xg=True)
-    def __update_session(self, session, speakers=None):
+    def _update(self, old_session, session_form, speakers=None):
         """
-        Transaction for persisting session and speaker changes
-        :param session:
-        :param speakers:
-        :return: Session Key
+        Update an existing Session using the new SessionForm message
+        :param old_session: old Session instance
+        :param session_form: SessionForm with updates
+        :return: updated Session
         """
+        new_session = Session.from_form(session_form)
 
-        # TODO: handle updates, right now assumes only creates
+        # deal with decrementing the old ones that aren't on this session anymore
+        new_keys = [speaker.key for speaker in speakers]
+        for old_key in old_session.speakerKeys:
+            if old_key not in new_keys:
+                # decrement old speaker's sesssion count. if 0, just delete.
+                old_speaker = old_key.get()
+                old_speaker.numSessions -= 1
+                if old_speaker.numSessions == 0:
+                    old_key.delete()
+                else:
+                    old_speaker.put()
 
-        if speakers:
-            for speaker in speakers:
-                session.speakerKeys.append(speaker.put())
-        return session.put()
+        # put speaker changes for new ones and append their keys
+        for speaker in speakers:
+            new_session.speakerKeys.append(speaker.put())
 
+        # since session key's use the session name, we need to delete the old record
+        old_session.key.delete()
+        new_session.put()
 
-    def __update_speaker(self, speaker_form):
+        return new_session
+
+    def __prepare_speaker(self, speaker_form):
         """
         Handle updating Speaker records and their session counts
         :param speaker_form: SpeakerForm

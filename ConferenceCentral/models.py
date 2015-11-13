@@ -193,13 +193,16 @@ class Speaker(ndb.Model):
         if not isinstance(form, SpeakerForm):
             raise TypeError('Expected %s, but given: %s' % (SpeakerForm, form))
 
-        return Speaker(name=form.name, title=form.title, numSessions=form.numSessions)
+        return Speaker(name=form.name,
+                       title=form.title,
+                       numSessions=form.numSessions,
+                       key=ndb.Key(Speaker, form.name + form.title))
 
 
 class SpeakerForm(messages.Message):
     """SpeakerForm -- Speaker RPC Message for embedding in Session"""
     name = messages.StringField(1, required=True)
-    title = messages.StringField(2)
+    title = messages.StringField(2, required=True)
     numSessions = messages.IntegerField(3)
 
 
@@ -246,17 +249,21 @@ class Session(ndb.Model):
         if not isinstance(form, SessionForm):
             raise TypeError('Expected %s but got %s' % (SessionForm, form))
 
+        wsck = ndb.Key(urlsafe=form.websafeConfKey)
+
         s = Session(name=form.name,
                     highlights=form.highlights,
                     duration=form.duration,
                     typeOfSession=form.typeOfSession,
-                    parent=ndb.Key(urlsafe=form.websafeConfKey)
+                    conferenceKey=wsck
                     )
 
         if form.startTime:
             s.startTime = datetime.strptime(form.startTime[:6], '%H:%M').time()
         if form.date:
             s.date = datetime.strptime(form.date[:10], '%Y-%m-%d').date()
+
+        s.key = ndb.Key(Session, s.name, parent=wsck)
 
         return s
 

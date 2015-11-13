@@ -104,10 +104,11 @@ class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
             else:
                 others = Session.query(ancestor=conf_key)\
                     .filter(Session.typeOfSession != SessionType.KEYNOTE)\
-                    .get()
+                    .fetch()
                 if others:
                     # just grab the first for now...
-                    self.update(conf_key, Speaker.query(key=others[0].speakerKeys[0]))
+                    s_key = others[0].speakerKeys[0]
+                    self.update(conf_key, s_key.get())
         self.response.set_status(204)
 
 
