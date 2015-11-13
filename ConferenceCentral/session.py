@@ -12,7 +12,6 @@ from datetime import datetime
 
 import endpoints
 from google.appengine.ext import ndb
-from protorpc import message_types
 from protorpc.message_types import VoidMessage
 from protorpc import messages
 from protorpc import remote
@@ -24,7 +23,7 @@ from models import SessionForm
 from models import SessionForms
 from models import SessionQueryForm
 from models import SessionType
-from models import WishlistForm, WishlistForms
+from models import WishlistForms
 from settings import API
 from profile import ProfileApi
 from utils import getUserId, get_from_webkey
@@ -109,9 +108,20 @@ class SessionApi(remote.Service):
             operator=queryutil.QueryOperator.NE,
             value='WORKSHOP'
         ))
+        query_form.filters.append(queryutil.QueryFilter(
+            field='START_TIME',
+            operator=queryutil.QueryOperator.LT,
+            value='19:00'
+        ))
 
+        stupid_time = datetime.combine(datetime.utcfromtimestamp(0), datetime.strptime('17:00', '%H:%M').time())
+
+        junk = Session.query(Session.typeOfSession.IN([SessionType.LECTURE, SessionType.KEYNOTE]))
+        junk = junk.filter(ndb.query.FilterNode('startTime', '<', stupid_time))
+        #junk = junk.filter(Session.startTime < datetime.strptime('19:00', '%H:%M').time())
+        print 'junk: ' + str(junk)
         sessions = queryutil.query(query_form)
-
+        sessions = junk
         return SessionForms(items=[s.to_form() for s in sessions])
 
 

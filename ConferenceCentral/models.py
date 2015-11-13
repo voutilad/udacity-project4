@@ -15,6 +15,7 @@ import endpoints
 from protorpc import messages
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
+from datetime import datetime
 
 
 class ConflictException(endpoints.ServiceException):
@@ -182,8 +183,10 @@ class Session(ndb.Model):
         for field in sf.all_fields():
             if hasattr(self, field.name):
                 # matching/common fields between classes
-                if field.name in ['date', 'startTime']:
-                    setattr(sf, field.name, str(self.date))
+                if field.name == 'date':
+                    sf.date = str(self.date)
+                elif field.name == 'startTime':
+                    sf.startTime = str(self.startTime)
                 else:
                     setattr(sf, field.name, getattr(self, field.name))
             elif field.name == 'websafeConfKey':

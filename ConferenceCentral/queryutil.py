@@ -6,6 +6,7 @@ Logic related to querying the ConferenceCentral object model.
 
 """
 import endpoints
+from datetime import datetime
 from protorpc import messages
 from protorpc.messages import FieldList
 from google.appengine.ext import ndb
@@ -108,7 +109,11 @@ def query(query_form, ancestor=None):
         # current casting logic. TODO: will need to be expanded upon for dates, etc.
         if f["field"] in ["month", "maxAttendees"]:
             f["value"] = int(f["value"])
-        formatted_query = ndb.query.FilterNode(f["field"], f["operator"], f["value"])
+        elif f['field'] in ['startTime']:
+            #need to pass build time object
+            filter_time = datetime.strptime(f['value'], '%H:%M').time()
+            f['value'] = filter_time
+        formatted_query = ndb.query.FilterNode(f['field'], f['operator'], f['value'])
         q = q.filter(formatted_query)
 
     return q
