@@ -103,11 +103,14 @@ class SessionApi(remote.Service):
         :param request:
         :return:
         """
-        stupid = ndb.query.FilterNode('typeOfSession', 'in', [1, 2])
-        print stupid
-        sessions = Session.query()\
-            .filter(stupid)\
-            .filter(Session.startTime < datetime.strptime('19:00', '%H:%S').time())
+        query_form = queryutil.QueryForm(target=queryutil.QueryTarget.SESSION)
+        query_form.filters.append(queryutil.QueryFilter(
+            field='TYPE',
+            operator=queryutil.QueryOperator.NE,
+            value='WORKSHOP'
+        ))
+
+        sessions = queryutil.query(query_form)
 
         return SessionForms(items=[s.to_form() for s in sessions])
 

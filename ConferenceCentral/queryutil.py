@@ -9,6 +9,7 @@ import endpoints
 from protorpc import messages
 from protorpc.messages import FieldList
 from google.appengine.ext import ndb
+from google.appengine.ext.ndb import msgprop
 from models import Conference, Session, Profile, ConferenceWishlist
 
 __author__ = 'voutilad@gmail.com (Dave Voutila)'
@@ -200,10 +201,22 @@ def __format_filters(query_filters, kind):
             # check if inequality operation has been used in previous filters
             # disallow the filter if inequality was performed on a different field before
             # track the field on which the inequality operation is performed
-            if inequality_field and inequality_field != filtr['field']:
-                raise endpoints.BadRequestException('Inequality filter is allowed on only one field.')
+            if isinstance(getattr(kind, filtr['field']), msgprop.EnumProperty):
+                # we need to convert these to 'in' query filters
+                filtr['operator'] = 'in'
+
+                # get dict representation of the Enum, delete the key we want to exclude
+                # TODO: This is super hacky...gotta be a better way.
+                enum_dict = getattr(kind, filtr['field'])._enum_type.to_dict()
+                del enum_dict[filtr['value']]
+
+                # build the filter values (ints) since our FilterNode needs to use the underlying ints
+                filtr['value'] = enum_dict.values()
             else:
-                inequality_field = filtr['field']
+                if inequality_field and inequality_field != filtr['field']:
+                    raise endpoints.BadRequestException('Inequality filter is allowed on only one field.')
+                else:
+                    inequality_field = filtr['field']
 
         formatted_filters.append(filtr)
     return inequality_field, formatted_filters
@@ -216,3 +229,4 @@ def __convert_inequality(enum_type, value):
     :param value: value of the original inequality
     :return: filter dict {
     """
+    pass

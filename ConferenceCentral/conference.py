@@ -205,6 +205,10 @@ class ConferenceApi(remote.Service):
         organisers = [(ndb.Key(Profile, conf.organizerUserId)) for conf in conferences]
         profiles = ndb.get_multi(organisers)
 
+        if not profiles or profiles == [None]:
+            # bootstrapping issue as the user hasn't created their profile obj
+            profiles = [Profile(key=org) for org in organisers]
+
         # put display names in a dict for easier fetching
         names = {}
         for profile in profiles:
