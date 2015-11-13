@@ -22,7 +22,7 @@ from models import ConferenceWishlist
 from models import Session
 from models import SessionForm
 from models import SessionForms
-from models import SessionQueryForm
+from models import SessionTypeQueryForm, SpeakerQueryForm
 from models import SessionType
 from models import Speaker
 from models import SpeakerForm
@@ -135,9 +135,9 @@ class SessionApi(remote.Service):
         """
 
         sessions = queryutil.query(request)
-        return SessionForms(items=[s.to_form() for s in sessions])
+        return SessionForms(items=self._populate_forms(sessions))
 
-    @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/type',
+    @endpoints.method(SessionTypeQueryForm, SessionForms, path='sessions/filter/type',
                       http_method='GET', name='getConferenceSessionsByType')
     def get_by_type(self, request):
         """
@@ -153,9 +153,10 @@ class SessionApi(remote.Service):
         sessions = Session.query(ancestor=c_key) \
             .filter(Session.typeOfSession == request.typeOfSession)
 
-        return SessionForms(items=[session.to_form() for session in sessions])
 
-    @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/speaker',
+        return SessionForms(items=self._populate_forms(sessions))
+
+    @endpoints.method(SpeakerQueryForm, SessionForms, path='sessions/filter/speaker',
                       http_method='GET', name='getBySpeaker')
     def get_by_speaker(self, request):
         """
@@ -164,9 +165,24 @@ class SessionApi(remote.Service):
         :return:
         """
 
-        sessions = Session.query().filter(Session.speaker == request.speaker)
+        if request.name and not request.title:
+            speakers = Speaker.query(Speaker.name == request.name)
+        elif not request.name and request.title:
+            speakers = Speaker.query(Speaker.title == request.title)
+        else:
+            speakers = Speaker.query(Speaker.name == request.name)\
+                .filter(Speaker.title == request.title)
 
-        return SessionForms(items=[session.to_form() for session in sessions])
+        speakers.fetch()
+
+        all_sessions = []
+        if speakers:
+            for speaker in speakers:
+                sessions = Session.query(Session.speakerKeys == speaker.key).fetch()
+                if sessions:
+                    all_sessions += sessions
+
+        return SessionForms(items=self._populate_forms(all_sessions))
 
     @endpoints.method(SessionForm, SessionForm, path='session',
                       http_method='POST', name='create')
@@ -414,7 +430,9 @@ class SessionApi(remote.Service):
         if not isinstance(speaker_form, SpeakerForm):
             raise TypeError('expected %s, but got %s' % (SpeakerForm, speaker_form))
 
-        speaker = Speaker.query(Speaker.name == speaker_form.name).get()
+        speaker = Speaker.query(Speaker.name == speaker_form.name)\
+            .filter(Speaker.title == speaker_form.title)\
+            .get()
         if speaker:
             speaker.numSessions += 1
         else:
@@ -422,3 +440,20 @@ class SessionApi(remote.Service):
             speaker.numSessions = 1
 
         return speaker
+
+    @staticmethod
+    def _populate_forms(sessions):
+        """
+        Since I separated out Speakers from Sessions, need to fetch those back onto Sesssions
+        when creating forms.
+        :param sessions:
+        :return:
+        """
+        session_forms = []
+
+        for session in sessions:
+            speakers = ndb.get_multi(session.speakerKeys)
+            form = session.to_form([speaker.to_form() for speaker in speakers])
+            session_forms.append(form)
+
+        return session_forms

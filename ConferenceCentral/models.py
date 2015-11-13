@@ -217,7 +217,7 @@ class Session(ndb.Model):
     startTime = ndb.TimeProperty()
     conferenceKey = ndb.KeyProperty(kind='Conference')
 
-    def to_form(self):
+    def to_form(self, speaker_forms=None):
         """
         Create the corresponding SessionForm RPC message
         :return: SessionForm
@@ -235,6 +235,9 @@ class Session(ndb.Model):
             elif field.name == 'websafeConfKey':
                 setattr(sf, field.name, self.conferenceKey.urlsafe())
         setattr(sf, 'websafeKey', self.key.urlsafe())
+
+        sf.speakers = speaker_forms
+
         return sf
 
     @staticmethod
@@ -306,11 +309,15 @@ class TeeShirtSize(messages.Enum):
 
 # - - - - - - - - - - - - - - - - - - - - - -
 
-class SessionQueryForm(messages.Message):
+class SpeakerQueryForm(messages.Message):
+    """"""
+    name = messages.StringField(1)
+    title = messages.StringField(2)
+
+class SessionTypeQueryForm(messages.Message):
     """SessionQueryForm -- Session query inbound form message"""
     websafeConfKey = messages.StringField(1)
     typeOfSession = messages.EnumField('SessionType', 2)
-    speaker = messages.StringField(3)
 
 class ConferenceQueryForm(messages.Message):
     """ConferenceQueryForm -- Conference query inbound form message"""
