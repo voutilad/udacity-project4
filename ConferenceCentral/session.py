@@ -47,9 +47,9 @@ SESSION_PUT_REQUEST = endpoints.ResourceContainer(
     websafeSessionKey=messages.StringField(1)
 )
 
-CONF_GET_REQUEST = endpoints.ResourceContainer(
+SESSION_DELETE_REQUEST = endpoints.ResourceContainer(
     VoidMessage,
-    websafeConferenceKey=messages.StringField(1),
+    websafeSessionKey=messages.StringField(1)
 )
 
 
@@ -136,7 +136,6 @@ class SessionApi(remote.Service):
 
         sessions = queryutil.query(request)
         return SessionForms(items=[s.to_form() for s in sessions])
-
 
     @endpoints.method(SessionQueryForm, SessionForms, path='sessions/filter/type',
                       http_method='GET', name='getConferenceSessionsByType')
@@ -231,6 +230,23 @@ class SessionApi(remote.Service):
 
         return response
 
+    @endpoints.method(SESSION_PUT_REQUEST, BooleanMessage, path='session/{websafeSessionKey}',
+                      http_method='DELETE', name='delete')
+    def delete(self, request):
+        """
+        Deletes a given Session cleaning up Speakers if needed
+        :param request:
+        :return:
+        """
+        session = ndb.Key(urlsafe=request.websafeSessionKey).get()
+
+        if not session:
+            return BooleanMessage(data=False)
+
+        speakers = ndb.get_multi(session.speakerKeys)
+
+        return BooleanMessage(data=self._delete(session, speakers))
+
     #
     # - - - Session Private Methods - - - - - - - - - - - - - - - - - - -
     #
@@ -290,6 +306,27 @@ class SessionApi(remote.Service):
                     wishlist.put()
 
         return BooleanMessage(data=True)
+
+    @ndb.transactional(xg=True)
+    def _delete(self, session, speakers=None):
+        """
+        Delete a session and clean up Speakers, decrementing or removing if needed.
+        :param session:
+        :param speakers:
+        :return: True on success, False on failure
+        """
+        if speakers:
+            for speaker in speakers:
+                speaker.numSessions -= 1
+
+                if speaker.numSessions < 1:
+                    speaker.key.delete()
+                else:
+                    speaker.put()
+
+        session.key.delete()
+
+        return True
 
     @ndb.transactional(xg=True)
     def _create(self, session, speakers=None):
