@@ -42,7 +42,8 @@ __author__ = 'voutilad@gmail.com (Dave Voutila)'
 
 EMAIL_SCOPE = endpoints.EMAIL_SCOPE
 API_EXPLORER_CLIENT_ID = endpoints.API_EXPLORER_CLIENT_ID
-MEMCACHE_ANNOUNCEMENTS_KEY = "RECENT_ANNOUNCEMENTS"
+MEMCACHE_ANNOUNCEMENTS_KEY = 'RECENT_ANNOUNCEMENTS'
+
 ANNOUNCEMENT_TPL = ('Last chance to attend! The following conferences '
                     'are nearly sold out: %s')
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -77,6 +78,9 @@ class ConferenceApi(remote.Service):
         /conferences/* - operates on or returns multiple Conference records
 
     """
+
+    FEATURED_KEY = 'SPEAKER-{conf_key}'
+
 
     #
     # - - - Endpoints - - - - - - - - - - - - - - - - - - -
@@ -256,6 +260,18 @@ class ConferenceApi(remote.Service):
         return ConferenceForms(items=[conf.to_form(names[conf.organizerUserId])
                                       for conf in conferences]
                                )
+
+    @endpoints.method(CONF_GET_REQUEST, StringMessage, path='conference/{websafeConferenceKey}/featured',
+                      http_method='GET', name='getFeaturedSpeaker')
+    def get_featured_speaker(self, request):
+        """
+        Checks Memcache for any featured speaker for the Conference
+        :return:
+        """
+
+        return StringMessage(
+            data=memcache.get(self.FEATURED_KEY.format(conf_key=request.websafeConferenceKey)) or ''
+        )
 
     # --- Registration ---
 

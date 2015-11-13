@@ -21,7 +21,7 @@ from google.appengine.ext import ndb
 from session import SessionApi
 from conference import ConferenceApi
 from profile import ProfileApi
-from models import Session, Speaker, SessionType
+from models import Session, SessionType
 
 # - - - Endpoints Client Api - - -
 
@@ -63,11 +63,10 @@ class SendConfirmationEmailHandler(webapp2.RequestHandler):
         )
 
 
-class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
+class FeaturedSpeakersHandler(webapp2.RequestHandler):
     """
     Pick a Featured Speaker for a Conference when Sessions are created/changed
     """
-    MEMCACHE_KEY_FORMAT = 'speaker-{conf_key}'
 
     def update(self, conf_key, speaker):
         """
@@ -76,11 +75,16 @@ class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
         :param speaker: Speaker instance
         :return: announcement
         """
-        announcement = 'Featured Speaker: %s' % speaker.name
-        m_key = self.MEMCACHE_KEY_FORMAT.format(conf_key=conf_key.urlsafe())
-        print 'Setting announcement (%s) with key (%s)' % (announcement, m_key)
-        memcache.set(m_key, announcement)
-        return announcement
+        s = 'Featured Speaker: %s' % speaker.name
+        if speaker.title:
+           s = s + ', ' + speaker.title
+
+        m_key = ConferenceApi.FEATURED_KEY.format(conf_key=conf_key.urlsafe())
+
+        print 'Setting announcement (%s) with key (%s)' % (s, m_key)
+        memcache.set(m_key, s)
+
+        return s
 
     def post(self):
         """
@@ -89,7 +93,7 @@ class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
         """
         wsck = self.request.get('conf_key')
         if not wsck:
-            print 'Bad request to UpdateFeaturedSpeakersHandler'
+            print 'Bad request to FeaturedSpeakersHandler'
             self.response.set_status(204) # bad request
         else:
             # do it
@@ -115,6 +119,6 @@ class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
 APP = webapp2.WSGIApplication([
     ('/crons/set_announcement', SetAnnouncementHandler),
     ('/tasks/send_confirmation_email', SendConfirmationEmailHandler),
-    ('/tasks/update_featured_speaker', UpdateFeaturedSpeakersHandler)
+    ('/tasks/update_featured_speaker', FeaturedSpeakersHandler)
 ], debug=True)
 
