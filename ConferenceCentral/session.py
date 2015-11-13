@@ -114,14 +114,7 @@ class SessionApi(remote.Service):
             value='19:00'
         ))
 
-        stupid_time = datetime.combine(datetime.utcfromtimestamp(0), datetime.strptime('17:00', '%H:%M').time())
-
-        junk = Session.query(Session.typeOfSession.IN([SessionType.LECTURE, SessionType.KEYNOTE]))
-        junk = junk.filter(ndb.query.FilterNode('startTime', '<', stupid_time))
-        #junk = junk.filter(Session.startTime < datetime.strptime('19:00', '%H:%M').time())
-        print 'junk: ' + str(junk)
         sessions = queryutil.query(query_form)
-        sessions = junk
         return SessionForms(items=[s.to_form() for s in sessions])
 
 

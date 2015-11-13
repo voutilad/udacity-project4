@@ -111,7 +111,7 @@ def query(query_form, ancestor=None):
             f["value"] = int(f["value"])
         elif f['field'] in ['startTime']:
             #need to pass build time object
-            filter_time = datetime.strptime(f['value'], '%H:%M').time()
+            filter_time = __parse_time(f['value'], '%H:%M')
             f['value'] = filter_time
         formatted_query = ndb.query.FilterNode(f['field'], f['operator'], f['value'])
         q = q.filter(formatted_query)
@@ -227,11 +227,16 @@ def __format_filters(query_filters, kind):
     return inequality_field, formatted_filters
 
 
-def __convert_inequality(enum_type, value):
+def __parse_time(time, format):
     """
-    Creates the proper set inequality for filter on an ndb.EnumProperty
-    :param enum_type: ndb.EnumProperty used in the filter
-    :param value: value of the original inequality
-    :return: filter dict {
+    Parses a time string in HH:MM format and properly sets the year to the epoch date of 1970
+
+    This gets around an issue where a raw datetime.time gets turned into a datetime.date by
+    GAE with a date set to 1-1-1900 instead of 1-1-1970
+    :param date_string: string with raw date
+    :return: datetime.time
     """
-    pass
+    return datetime.combine(
+        datetime.utcfromtimestamp(0),
+        datetime.strptime(time, format).time()
+    )
