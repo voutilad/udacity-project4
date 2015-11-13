@@ -123,7 +123,7 @@ class SessionApi(remote.Service):
         ))
 
         sessions = queryutil.query(query_form)
-        return SessionForms(items=[s.to_form() for s in sessions])
+        return SessionForms(items=self._populate_forms(sessions))
 
     @endpoints.method(queryutil.QueryForm, SessionForms, path='sessions/query',
                       http_method='POST', name='querySessions')
