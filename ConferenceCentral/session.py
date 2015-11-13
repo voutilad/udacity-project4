@@ -11,6 +11,7 @@ __author__ = 'voutilad@gmail.com (Dave Voutila)'
 from datetime import datetime
 
 import endpoints
+from google.appengine.api import taskqueue
 from google.appengine.ext import ndb
 from protorpc.message_types import VoidMessage
 from protorpc import messages
@@ -23,6 +24,8 @@ from models import SessionForm
 from models import SessionForms
 from models import SessionQueryForm
 from models import SessionType
+from models import Speaker
+from models import SpeakerForm
 from models import WishlistForms
 from settings import API
 from profile import ProfileApi
@@ -234,7 +237,6 @@ class SessionApi(remote.Service):
 
         return BooleanMessage(data=True)
 
-
     def _create_session(self, request):
         """
         Creates a new Session object and inserts it into storage returning the created value.
@@ -249,24 +251,6 @@ class SessionApi(remote.Service):
         if not request.name:
             raise endpoints.BadRequestException("Session 'name' field required")
 
-        # TODO: GENERICIZE THE RPC/NBD TRANSLATION?!
-        # copy ConferenceForm/ProtoRPC Message into dict
-        data = {field.name: getattr(request, field.name) for field in request.all_fields()}
-        del data['websafeConfKey'] # we store the converted value
-        del data['websafeKey']
-
-        # add default values for those missing (both data model & outbound Message)
-        for df in SESSION_DEFAULTS:
-            if data[df] in (None, []):
-                data[df] = SESSION_DEFAULTS[df]
-                setattr(request, df, SESSION_DEFAULTS[df])
-
-        # TODO: validate session dates are sane i.e. within the start/end of the conf.
-        if data['date']:
-            data['date'] = datetime.strptime(data['date'][:10], '%Y-%m-%d').date()
-        if data['startTime']:
-            data['startTime'] = datetime.strptime(data['startTime'][:6], '%H:%M').time()
-
         # fetch the key of the ancestor conference
         conf_key = ndb.Key(urlsafe=request.websafeConfKey)
         conf = conf_key.get()
@@ -279,13 +263,53 @@ class SessionApi(remote.Service):
         if user_id != conf.organizerUserId:
             raise endpoints.ForbiddenException('Only the conference owner can create sessions.')
 
-        s_id = Session.allocate_ids(size=1, parent=conf_key)[0]
-        s_key = ndb.Key(Session, s_id, parent=conf_key)
-        data['key'] = s_key
-        data['conferenceKey'] = conf_key
+        # create Session and set up the parent key
+        session = Session.from_form(request)
+        session.parent = conf_key
 
-        # create and persist the Session
-        # TODO: email organizer?
-        Session(**data).put()
+        # deal with Speaker creation
+        speakers = [self.__update_speaker(form) for form in request.speakers]
+
+        # try the transaction
+        request.websafeKey = self.__update_session(session, speakers).urlsafe()
+
+        # Add a task to the queue for getting featured speaker changes
+        taskqueue.add(params={'conf_key': request.websafeConfKey},
+                      url='/tasks/update_featured_speaker')
+
         return request
 
+    @ndb.transactional(xg=True)
+    def __update_session(self, session, speakers=None):
+        """
+        Transaction for persisting session and speaker changes
+        :param session:
+        :param speakers:
+        :return: Session Key
+        """
+
+        # TODO: handle updates, right now assumes only creates
+
+        if speakers:
+            for speaker in speakers:
+                session.speakerKeys.append(speaker.put())
+        return session.put()
+
+
+    def __update_speaker(self, speaker_form):
+        """
+        Handle updating Speaker records and their session counts
+        :param speaker_form: SpeakerForm
+        :return: Speaker with updates ready to be put()
+        """
+        if not isinstance(speaker_form, SpeakerForm):
+            raise TypeError('expected %s, but got %s' % (SpeakerForm, speaker_form))
+
+        speaker = Speaker.query(Speaker.name == speaker_form.name).get()
+        if speaker:
+            speaker.numSessions += 1
+        else:
+            speaker = Speaker.from_form(speaker_form)
+            speaker.numSessions = 1
+
+        return speaker

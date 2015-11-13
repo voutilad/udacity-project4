@@ -27,6 +27,10 @@ API_SERVER = endpoints.api_server([ConferenceApi, SessionApi, ProfileApi])  # re
 # - - - Backend Api - - -
 
 class SetAnnouncementHandler(webapp2.RequestHandler):
+    """
+    Handles creation of announcements
+    """
+
     def get(self):
         """
         Set announcement values in Memcache.
@@ -37,6 +41,9 @@ class SetAnnouncementHandler(webapp2.RequestHandler):
 
 
 class SendConfirmationEmailHandler(webapp2.RequestHandler):
+    """
+    Handles Email confirmation tasks
+    """
     def post(self):
         """
         Send email confirming Conference creation.
@@ -52,8 +59,28 @@ class SendConfirmationEmailHandler(webapp2.RequestHandler):
                 'conferenceInfo')
         )
 
+
+class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
+    """
+    Pick a Featured Speaker for a Conference when Sessions are created/changed
+    """
+    def post(self):
+        """
+        Expected to receive Postdata with a web-safe Conference key
+        :return:
+        """
+        wsck = self.request.get('conf_key')
+        if not wsck:
+            self.response.set_status(400) # bad request
+        else:
+            # do it
+            print 'Updating Featured Speaker for conference: %s' % wsck
+            self.response.set_status(204)
+
+
 APP = webapp2.WSGIApplication([
     ('/crons/set_announcement', SetAnnouncementHandler),
     ('/tasks/send_confirmation_email', SendConfirmationEmailHandler),
+    ('/tasks/update_featured_speaker', UpdateFeaturedSpeakersHandler)
 ], debug=True)
 

@@ -12,6 +12,7 @@ modified by voutilad@gmail.com for Udacity FullStackDev Project 4
 """
 import httplib
 import endpoints
+from datetime import datetime
 from protorpc import messages
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
@@ -72,6 +73,9 @@ class ProfileForm(messages.Message):
     conferenceKeysToAttend = messages.StringField(4, repeated=True)
 
 
+# - - - - - - - - - - - - - - - - - - - -
+
+
 class Conference(ndb.Model):
     """Conference -- Conference object"""
     name = ndb.StringProperty(required=True)
@@ -128,6 +132,9 @@ class ConferenceForms(messages.Message):
     items = messages.MessageField(ConferenceForm, 1, repeated=True)
 
 
+# - - - - - - - - - - - - - - - - - - - -
+
+
 class ConferenceWishlist(ndb.Model):
     """ConferenceWishlist --- maintains list of keys of favorite sessions for a given conference"""
     conferenceKey = ndb.KeyProperty(kind='Conference', required=True)
@@ -155,6 +162,9 @@ class WishlistForms(messages.Message):
     items = messages.MessageField(WishlistForm, 1, repeated=True)
 
 
+# - - - - - - - - - - - - - - - - - - - -
+
+
 class SessionType(messages.Enum):
     """SessionType -- type of session being held at conference"""
     LECTURE = 1
@@ -162,11 +172,42 @@ class SessionType(messages.Enum):
     WORKSHOP = 3
 
 
+class Speaker(ndb.Model):
+    """Speaker -- Session speaker"""
+    name = ndb.StringProperty(required=True)
+    title = ndb.StringProperty()
+    numSessions = ndb.IntegerProperty(default=0)
+
+    def to_form(self):
+        """ Converts Speaker to SpeakerForm messages
+        :return: SpeakerForm
+        """
+        return SpeakerForm(name=self.name, title=self.title, numSessions=self.numSessions)
+
+    @staticmethod
+    def from_form(form):
+        """ Create a new Speaker model instance from a SpeakerForm
+        :param form: SpeakerForm
+        :return: Speaker
+        """
+        if not isinstance(form, SpeakerForm):
+            raise TypeError('Expected %s, but given: %s' % (SpeakerForm, form))
+
+        return Speaker(name=form.name, title=form.title, numSessions=form.numSessions)
+
+
+class SpeakerForm(messages.Message):
+    """SpeakerForm -- Speaker RPC Message for embedding in Session"""
+    name = messages.StringField(1, required=True)
+    title = messages.StringField(2)
+    numSessions = messages.IntegerField(3)
+
+
 class Session(ndb.Model):
     """Session -- Session object"""
     name = ndb.StringProperty(required=True)
     highlights = ndb.StringProperty(repeated=True)
-    speaker = ndb.StringProperty()
+    speakerKeys = ndb.KeyProperty(kind='Speaker', repeated=True)
     duration = ndb.IntegerProperty()
     typeOfSession = msgprop.EnumProperty(SessionType, required=True, indexed=True)
     date = ndb.DateProperty()
@@ -193,12 +234,36 @@ class Session(ndb.Model):
         setattr(sf, 'websafeKey', self.key.urlsafe())
         return sf
 
+    @staticmethod
+    def from_form(form):
+        """
+        Creates a new Session object from the given SessionForm.
+
+        Note: does not set conferenceKey or speakerKeys or even the Session key
+        :param form: SessionForm
+        :return: Session
+        """
+        if not isinstance(form, SessionForm):
+            raise TypeError('Expected %s but got %s' % (SessionForm, form))
+
+        s = Session(name=form.name,
+                    highlights=form.highlights,
+                    duration=form.duration,
+                    typeOfSession=form.typeOfSession
+                    )
+
+        if form.startTime:
+            s.startTime = datetime.strptime(form.startTime[:6], '%H:%M').time()
+        if form.date:
+            s.date = datetime.strptime(form.date[:10], '%Y-%m-%d').date()
+
+        return s
 
 class SessionForm(messages.Message):
     """SessionForm -- RPC message containing details about a Session"""
     name = messages.StringField(1)
     highlights = messages.StringField(2, repeated=True)
-    speaker = messages.StringField(3)
+    speakers = messages.MessageField(SpeakerForm, 3, repeated=True)
     duration = messages.IntegerField(4)
     typeOfSession = messages.EnumField(SessionType, 5)
     date = messages.StringField(6)
@@ -210,11 +275,6 @@ class SessionForm(messages.Message):
 class SessionForms(messages.Message):
     """SessionForms -- multiple SessionForm's"""
     items = messages.MessageField(SessionForm, 1, repeated=True)
-
-
-class Speaker(messages.Message):
-    name = messages.StringField(1, required=True)
-    title = messages.StringField(2)
 
 
 class TeeShirtSize(messages.Enum):
