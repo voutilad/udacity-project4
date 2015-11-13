@@ -94,8 +94,8 @@ class SessionApi(remote.Service):
             items=[wishlist.to_form() for wishlist in wishlists]
         )
 
-    @endpoints.method(VoidMessage, SessionForms, path='sessions/query',
-                      http_method='POST', name='querySessions')
+    @endpoints.method(VoidMessage, SessionForms, path='sessions/querydemo',
+                      http_method='GET', name='querySessionsDemo')
     def querySessions(self, request):
         """
         Queries Session objects in datastore
@@ -115,6 +115,18 @@ class SessionApi(remote.Service):
         ))
 
         sessions = queryutil.query(query_form)
+        return SessionForms(items=[s.to_form() for s in sessions])
+
+    @endpoints.method(queryutil.QueryForm, SessionForms, path='sessions/query',
+                      http_method='POST', name='querySessions')
+    def querySessions(self, request):
+        """
+        Queries Session objects in datastore
+        :param request:
+        :return:
+        """
+
+        sessions = queryutil.query(request)
         return SessionForms(items=[s.to_form() for s in sessions])
 
 

@@ -15,7 +15,6 @@ import endpoints
 from protorpc import messages
 from google.appengine.ext import ndb
 from google.appengine.ext.ndb import msgprop
-from datetime import datetime
 
 
 class ConflictException(endpoints.ServiceException):
