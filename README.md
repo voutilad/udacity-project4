@@ -101,13 +101,9 @@ equality based on the other known values like so:
 AND(startTime < 1900, sessionType IN ['KEYNOTE', 'LECTURE'])
 ```
 
-In code:
-```
-Session.query(Session.startTime < t)
-```
-
-Instead, for fields with finite cardinality, the original filter formatting
-method will preemptively raise a _BadRequestError_:
+Instead, for fields with finite cardinality like Enums or Text fields used for
+things like conference topics, the original filter formatting method will
+preemptively raise a _BadRequestError_:
 ```
 BadRequestError: Only one inequality filter per query is supported.
 Encountered both typeOfSession and startTime
@@ -135,9 +131,12 @@ POST http://localhost:8080/_ah/api/conferenceCentral/v1/sessions/query
 _Note: you can send a GET to the endpoint /sessions/querydemo to execute the
 above if you don't want to perform the POST_
 
-###
+At the moment, the translation logic only happens for EnumProperty, but could be
+extended to work with StringProperty as well if a mechanism tracks unique values
+and some boundaries are put on cardinality potentially. Might be a good use of
+Memcache for storing a list of known values.
 
-References:
----
+### References:
+
 * [Creating an API with Implemented with Multiple Classes](https://cloud.google.com/appengine/docs/python/endpoints/create_api#creating_an_api_implemented_with_multiple_classes)
-** [Stackoverflow](http://stackoverflow.com/questions/23241390/split-cloud-endpoint-api-over-multiple-classes-and-multiple-files)
+* [Stackoverflow - Split Cloud ENdpoint over Multiple Classes](http://stackoverflow.com/questions/23241390/split-cloud-endpoint-api-over-multiple-classes-and-multiple-files)
