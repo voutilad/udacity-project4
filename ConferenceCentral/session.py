@@ -265,7 +265,6 @@ class SessionApi(remote.Service):
 
         # create Session and set up the parent key
         session = Session.from_form(request)
-        session.parent = conf_key
 
         # deal with Speaker creation
         speakers = [self.__update_speaker(form) for form in request.speakers]

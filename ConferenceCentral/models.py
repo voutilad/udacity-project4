@@ -207,7 +207,7 @@ class Session(ndb.Model):
     """Session -- Session object"""
     name = ndb.StringProperty(required=True)
     highlights = ndb.StringProperty(repeated=True)
-    speakerKeys = ndb.KeyProperty(kind='Speaker', repeated=True)
+    speakerKeys = ndb.KeyProperty(kind='Speaker', repeated=True, indexed=True)
     duration = ndb.IntegerProperty()
     typeOfSession = msgprop.EnumProperty(SessionType, required=True, indexed=True)
     date = ndb.DateProperty()
@@ -249,7 +249,8 @@ class Session(ndb.Model):
         s = Session(name=form.name,
                     highlights=form.highlights,
                     duration=form.duration,
-                    typeOfSession=form.typeOfSession
+                    typeOfSession=form.typeOfSession,
+                    parent=ndb.Key(urlsafe=form.websafeConfKey)
                     )
 
         if form.startTime:

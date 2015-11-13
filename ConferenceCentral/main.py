@@ -14,11 +14,14 @@ modified by voutilad@gmail.com for Udacity FullStackDev Project 4
 
 import webapp2
 import endpoints
+from google.appengine.api import memcache
 from google.appengine.api import app_identity
 from google.appengine.api import mail
+from google.appengine.ext import ndb
 from session import SessionApi
 from conference import ConferenceApi
 from profile import ProfileApi
+from models import Session, Speaker, SessionType
 
 # - - - Endpoints Client Api - - -
 
@@ -64,6 +67,21 @@ class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
     """
     Pick a Featured Speaker for a Conference when Sessions are created/changed
     """
+    MEMCACHE_KEY_FORMAT = 'speaker-{conf_key}'
+
+    def update(self, conf_key, speaker):
+        """
+        Update memcache with the new message for the conference
+        :param conf_key: Conference key
+        :param speaker: Speaker instance
+        :return: announcement
+        """
+        announcement = 'Featured Speaker: %s' % speaker.name
+        m_key = self.MEMCACHE_KEY_FORMAT.format(conf_key=conf_key.urlsafe())
+        print 'Setting announcement (%s) with key (%s)' % (announcement, m_key)
+        memcache.set(m_key, announcement)
+        return announcement
+
     def post(self):
         """
         Expected to receive Postdata with a web-safe Conference key
@@ -71,11 +89,26 @@ class UpdateFeaturedSpeakersHandler(webapp2.RequestHandler):
         """
         wsck = self.request.get('conf_key')
         if not wsck:
-            self.response.set_status(400) # bad request
+            print 'Bad request to UpdateFeaturedSpeakersHandler'
+            self.response.set_status(204) # bad request
         else:
             # do it
-            print 'Updating Featured Speaker for conference: %s' % wsck
-            self.response.set_status(204)
+            conf_key = ndb.Key(urlsafe=wsck)
+            keynotes = Session.query(ancestor=conf_key)\
+                .filter(Session.typeOfSession == SessionType.KEYNOTE)\
+                .fetch()
+            if keynotes:
+                # take the first keynote presenter and feature them
+                s_key = keynotes[0].speakerKeys[0]
+                self.update(conf_key, s_key.get())
+            else:
+                others = Session.query(ancestor=conf_key)\
+                    .filter(Session.typeOfSession != SessionType.KEYNOTE)\
+                    .get()
+                if others:
+                    # just grab the first for now...
+                    self.update(conf_key, Speaker.query(key=others[0].speakerKeys[0]))
+        self.response.set_status(204)
 
 
 APP = webapp2.WSGIApplication([
