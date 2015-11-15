@@ -6,10 +6,6 @@ session.py -- ConferenceCentral Session methods;
 
 """
 
-__author__ = 'voutilad@gmail.com (Dave Voutila)'
-
-from datetime import datetime
-
 import endpoints
 from google.appengine.api import taskqueue
 from google.appengine.ext import ndb
@@ -29,8 +25,10 @@ from models import SpeakerForm
 from models import WishlistForms
 from settings import API
 from profile import ProfileApi
-from utils import getUserId, get_from_webkey
+from utils import get_user_id, get_from_webkey, require_oauth
 import queryutil
+
+__author__ = 'voutilad@gmail.com (Dave Voutila)'
 
 SESSION_DEFAULTS = {
     'duration': 60,
@@ -69,6 +67,7 @@ class SessionApi(remote.Service):
     # - - - WishListing - - - - - - - - - - - - - - - - - - -
     @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='wishlist/{websafeSessionKey}',
                       http_method='PUT', name='addSessionToWishlist')
+    @require_oauth
     def addSessionToWishlist(self, request):
         """
         Add a Session to a ConferenceWishlist
@@ -79,6 +78,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='wishlist/{websafeSessionKey}',
                       http_method='DELETE', name='removeSessionFromWishlist')
+    @require_oauth
     def removeSessionFromWishlist(self, request):
         """
         Remove a Session from a ConferenceWishlist
@@ -186,6 +186,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(SessionForm, SessionForm, path='session',
                       http_method='POST', name='create')
+    @require_oauth
     def create(self, request):
         """
         Creates a new Session. Only available to the organizer of the conference
@@ -218,6 +219,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(SESSION_PUT_REQUEST, SessionForm, path='session/{websafeSessionKey}',
                       http_method='PUT', name='update')
+    @require_oauth
     def update(self, request):
         """
         Attempts to update an existing Session
@@ -248,6 +250,7 @@ class SessionApi(remote.Service):
 
     @endpoints.method(SESSION_PUT_REQUEST, BooleanMessage, path='session/{websafeSessionKey}',
                       http_method='DELETE', name='delete')
+    @require_oauth
     def delete(self, request):
         """
         Deletes a given Session cleaning up Speakers if needed
@@ -369,7 +372,7 @@ class SessionApi(remote.Service):
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
-        user_id = getUserId(user)
+        user_id = get_user_id(user)
 
         if not session_form.name:
             raise endpoints.BadRequestException("Session 'name' field required")

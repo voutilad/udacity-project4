@@ -25,9 +25,12 @@ from models import Session, SessionType
 
 # - - - Endpoints Client Api - - -
 
+
 API_SERVER = endpoints.api_server([ConferenceApi, SessionApi, ProfileApi])  # register API
 
+
 # - - - Backend Api - - -
+
 
 class SetAnnouncementHandler(webapp2.RequestHandler):
     """
@@ -67,8 +70,8 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
     """
     Pick a Featured Speaker for a Conference when Sessions are created/changed
     """
-
-    def update(self, conf_key, speaker):
+    @staticmethod
+    def update(conf_key, speaker):
         """
         Update memcache with the new message for the conference
         :param conf_key: Conference key
@@ -77,12 +80,13 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
         """
         s = 'Featured Speaker: %s' % speaker.name
         if speaker.title:
-           s = s + ', ' + speaker.title
+            s += ', ' + speaker.title
 
         m_key = ConferenceApi.FEATURED_KEY.format(conf_key=conf_key.urlsafe())
 
         print 'Setting announcement (%s) with key (%s)' % (s, m_key)
-        memcache.set(m_key, s)
+
+        memcache.Client().cas(m_key, s)
 
         return s
 
@@ -94,7 +98,7 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
         wsck = self.request.get('conf_key')
         if not wsck:
             print 'Bad request to FeaturedSpeakersHandler'
-            self.response.set_status(204) # bad request
+            self.response.set_status(204)  # bad request
         else:
             # do it
             conf_key = ndb.Key(urlsafe=wsck)
@@ -121,4 +125,3 @@ APP = webapp2.WSGIApplication([
     ('/tasks/send_confirmation_email', SendConfirmationEmailHandler),
     ('/tasks/update_featured_speaker', FeaturedSpeakersHandler)
 ], debug=True)
-

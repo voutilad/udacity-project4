@@ -236,7 +236,8 @@ class Session(ndb.Model):
                 setattr(sf, field.name, self.conferenceKey.urlsafe())
         setattr(sf, 'websafeKey', self.key.urlsafe())
 
-        sf.speakers = speaker_forms
+        if speaker_forms:
+            sf.speakers = speaker_forms
 
         return sf
 

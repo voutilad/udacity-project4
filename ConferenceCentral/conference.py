@@ -33,7 +33,7 @@ from models import ConflictException
 from models import Profile
 from models import StringMessage
 from settings import API
-from utils import getUserId
+from utils import get_user_id, require_oauth
 
 import queryutil
 from profile import ProfileApi
@@ -81,12 +81,12 @@ class ConferenceApi(remote.Service):
 
     FEATURED_KEY = 'SPEAKER-{conf_key}'
 
-
     #
     # - - - Endpoints - - - - - - - - - - - - - - - - - - -
     #
     @endpoints.method(ConferenceForm, ConferenceForm, path='conference',
                       http_method='POST', name='createConference')
+    @require_oauth
     def create(self, request):
         """
         Creates a new Conference object
@@ -97,6 +97,7 @@ class ConferenceApi(remote.Service):
 
     @endpoints.method(CONF_POST_REQUEST, ConferenceForm, path='conference/{websafeConferenceKey}',
                       http_method='PUT', name='updateConference')
+    @require_oauth
     def update(self, request):
         """
         Update conference w/provided fields & return w/updated info from given ConferenceForm
@@ -137,7 +138,7 @@ class ConferenceApi(remote.Service):
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
-        user_id = getUserId(user)
+        user_id = get_user_id(user)
 
         # create ancestor query for all key matches for this user
         confs = Conference.query(ancestor=ndb.Key(Profile, user_id))
@@ -239,7 +240,7 @@ class ConferenceApi(remote.Service):
             raise endpoints.BadRequestException()
 
         prof = ProfileApi.profile_from_user()  # get user Profile
-        conf_keys = prof.conferencesToAttend # Changed from original code since now we store Keys
+        conf_keys = prof.conferencesToAttend  # Changed from original code since now we store Keys
 
         if len(conf_keys) == 0:
             # user hasn't registered for anything, so bail out of this method
@@ -266,6 +267,7 @@ class ConferenceApi(remote.Service):
     def get_featured_speaker(self, request):
         """
         Checks Memcache for any featured speaker for the Conference
+        :param request:
         :return:
         """
 
@@ -277,6 +279,7 @@ class ConferenceApi(remote.Service):
 
     @endpoints.method(CONF_GET_REQUEST, BooleanMessage, path='conference/{websafeConferenceKey}/register',
                       http_method='POST', name='registerForConference')
+    @require_oauth
     def register(self, request):
         """
         Register user for a given Conference
@@ -287,6 +290,7 @@ class ConferenceApi(remote.Service):
 
     @endpoints.method(CONF_GET_REQUEST, BooleanMessage, path='conference/{websafeConferenceKey}/unregister',
                       http_method='DELETE', name='unregisterFromConference')
+    @require_oauth
     def unregister(self, request):
         """
         Unregister user for selected conference.
@@ -306,7 +310,9 @@ class ConferenceApi(remote.Service):
         if not isinstance(request, message_types.VoidMessage):
             raise endpoints.BadRequestException()
 
-        return StringMessage(data=memcache.get(MEMCACHE_ANNOUNCEMENTS_KEY) or '')
+        client = memcache.Client()
+
+        return StringMessage(data=client.gets(MEMCACHE_ANNOUNCEMENTS_KEY) or '')
 
     @endpoints.method(VoidMessage, ConferenceForms, path='conferences/filterPlayground',
                       http_method='GET', name='filterPlayground')
@@ -348,17 +354,19 @@ class ConferenceApi(remote.Service):
             Conference.seatsAvailable > 0)
         ).fetch(projection=[Conference.name])
 
+        client = memcache.Client()
+
         if confs:
             # If there are almost sold out conferences,
             # format announcement and set it in memcache
             announcement = ANNOUNCEMENT_TPL % (
                 ', '.join(conf.name for conf in confs))
-            memcache.set(MEMCACHE_ANNOUNCEMENTS_KEY, announcement)
+            client.cas(MEMCACHE_ANNOUNCEMENTS_KEY, announcement)
         else:
             # If there are no sold out conferences,
             # delete the memcache announcements entry
             announcement = ""
-            memcache.delete(MEMCACHE_ANNOUNCEMENTS_KEY)
+            client.delete(MEMCACHE_ANNOUNCEMENTS_KEY)
 
         return announcement
 
@@ -366,7 +374,8 @@ class ConferenceApi(remote.Service):
     # - - - Conference Private Methods - - - - - - - - - - - - - - - - - - -
     #
 
-    def _create(self, request):
+    @staticmethod
+    def _create(request):
         """
         Create or update Conference object, returning ConferenceForm/request.
         :param request:
@@ -376,7 +385,7 @@ class ConferenceApi(remote.Service):
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
-        user_id = getUserId(user)
+        user_id = get_user_id(user)
 
         if not request.name:
             raise endpoints.BadRequestException("Conference 'name' field required")
@@ -426,7 +435,7 @@ class ConferenceApi(remote.Service):
         user = endpoints.get_current_user()
         if not user:
             raise endpoints.UnauthorizedException('Authorization required')
-        user_id = getUserId(user)
+        user_id = get_user_id(user)
 
         # update existing conference
         conf = ndb.Key(urlsafe=request.websafeConferenceKey).get()
@@ -460,7 +469,8 @@ class ConferenceApi(remote.Service):
         prof = ndb.Key(Profile, user_id).get()
         return conf.to_form(getattr(prof, 'displayName'))
 
-    def _query(self, request):
+    @staticmethod
+    def _query(request):
         """
         Return formatted query from the submitted filters.
         :param request:
@@ -468,8 +478,9 @@ class ConferenceApi(remote.Service):
         """
         return queryutil.query(request)
 
+    @staticmethod
     @ndb.transactional(xg=True)
-    def _register(self, request, reg=True):
+    def _register(request, reg=True):
         """
         Register or unregister user for selected conference.
         :param request: RPC Message Request with a urlsafe Conference Key

@@ -24,8 +24,7 @@ I decided to break the API up into it's core parts:
 * _conferenceCentral.session_ - [session.py](./ConferenceCentral/session.py)
  methods related to Conference Session objects
 
-As a result, I had to update some of the javascript using the Google Client API
-js library to point to the new paths.
+As a result, I had to update some of the javascript using the Google Client API js library to point to the new paths.
 
 Also, [app.yaml](./ConferenceCentral/app.yaml) is updated now to account for
 the changes and the _endpoints.api_server_ call is now isolated from
@@ -80,9 +79,82 @@ class QueryForm(messages.Message):
     ancestorWebSafeKey = messages.StringField(5)
 ```
 
+## Data Model
+The original Data Model from ConferenceCentral handled Conference and Profile
+data. As part of this project, I added Sessions, ConferenceWishlists, and
+Speakers to round out the functionality of creating and managing conferences.
 
+### Sessions
+Sessions support the required attributes for the project, but importantly
+support tracking one or many Speaker keys.
+
+``` python
+class Session(ndb.Model):
+    """Session -- Session object"""
+    name = ndb.StringProperty(required=True)
+    highlights = ndb.StringProperty(repeated=True)
+    speakerKeys = ndb.KeyProperty(kind='Speaker', repeated=True, indexed=True)
+    duration = ndb.IntegerProperty()
+    typeOfSession = msgprop.EnumProperty(SessionType, required=True, indexed=True)
+    date = ndb.DateProperty()
+    startTime = ndb.TimeProperty()
+    conferenceKey = ndb.KeyProperty(kind='Conference')
+    ...
+```
+
+I decided to use the relatively new msgprop.EnumProperty for storing session
+types in _typeOfSession_. It results in storing the integer value of the
+_SessionType_ enum instead of the string value.
+
+### Wishlists
+Wihlisting is represented by instances of the _ConferenceWishlist_ model. Each
+user can create many wishlists, one for each Conference.
+
+``` python
+class ConferenceWishlist(ndb.Model):
+    """ConferenceWishlist --- maintains list of keys of favorite sessions for
+    a given conference"""
+    conferenceKey = ndb.KeyProperty(kind='Conference', required=True)
+    sessionKeys = ndb.KeyProperty(kind='Session', repeated=True)
+  ...
+```
+
+Using the user's Profile as an ancestor, it's easy to retrieve all
+ConferenceWishlist records for the user. Having separate records for each
+Conference can facilitate adding hooks to cleanup wishlist records when
+Conferences are deleted as well as keeping the data organized to easily
+retrieve all wishlisted sessions per conference. (Plus, with a 10MB max record
+size, there's a slim chance that if the app never cleaned up old wishlists
+having them all appended to a single record could hit the data cap.)
+
+### Speakers
+Speakers are modeled with Session's as parents and use the _name_ and _title_
+attributes to generate keys. This allows for a few features:
+
+1. Speakers can have the same names, but different "titles" to differentiate
+them. Title could be set to actual job title and employer for instance to
+keep them distinct.
+
+2. Splitting _name_ and _title_ up allows for more advanced queries where
+you can search by name, title, or both. For instance, someone might want to
+find sessions where a CEO or CTO is speaking.
+
+``` python
+class Speaker(ndb.Model):
+    """Speaker -- Session speaker"""
+    name = ndb.StringProperty(required=True)
+    title = ndb.StringProperty()
+    numSessions = ndb.IntegerProperty(default=0)
+    ...
+```
+
+The _numSessions_ attribute is used similarly to the _seatsAvailable_ in
+Conference records. As Speakers are added to Sessions, the field is incremented
+to reflect the number of Sessions the Speaker is speaking at. This logic can
+be baked into things like picking "Featured Speakers" for instance.
 
 ---
+
 
 ## The Query Problem
 The question of "find the sessions that start before 7pm and are not workshops"
@@ -136,7 +208,14 @@ extended to work with StringProperty as well if a mechanism tracks unique values
 and some boundaries are put on cardinality potentially. Might be a good use of
 Memcache for storing a list of known values.
 
-### References:
+### Alternative Solutions
+
+Alternatively, some logic
+
+---
+
+## References:
 
 * [Creating an API with Implemented with Multiple Classes](https://cloud.google.com/appengine/docs/python/endpoints/create_api#creating_an_api_implemented_with_multiple_classes)
 * [Stackoverflow - Split Cloud ENdpoint over Multiple Classes](http://stackoverflow.com/questions/23241390/split-cloud-endpoint-api-over-multiple-classes-and-multiple-files)
+* [A guide to Python's Function Decorators](http://thecodeship.com/patterns/guide-to-python-function-decorators/)

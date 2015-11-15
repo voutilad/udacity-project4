@@ -16,7 +16,7 @@ from models import ProfileForm
 from models import ProfileMiniForm
 from models import TeeShirtSize
 from settings import API
-from utils import getUserId
+from utils import get_user_id, require_oauth
 
 __author__ = 'voutilad@gmail.com (Dave Voutila)'
 
@@ -30,21 +30,36 @@ class ProfileApi(remote.Service):
 
     @endpoints.method(VoidMessage, ProfileForm,
                       path='profile', http_method='GET', name='getProfile')
-    def getProfile(self, request):
-        """Return user profile."""
+    @require_oauth
+    def get(self, request):
+        """
+        Return user Profile
+        :param request:
+        :return:
+        """
+        if not isinstance(request, VoidMessage):
+            raise endpoints.BadRequestException()
+
         return self._do_profile()
 
     @endpoints.method(ProfileMiniForm, ProfileForm,
                       path='profile', http_method='POST', name='saveProfile')
-    def saveProfile(self, request):
-        """Update & return user profile."""
+    @require_oauth
+    def save(self, request):
+        """
+        Update & return user profile.
+        :param request:
+        :return:
+        """
+
         return self._do_profile(request)
 
     #
     # - - - Profile Public Methods - - - - - - - - - - - - - - - - - - -
     #
-    @classmethod
-    def profile_from_user(self):
+
+    @staticmethod
+    def profile_from_user():
         """
         Return user Profile from datastore, creating new one if non-existent.
         :return: Profile model for the current endpoint user
@@ -55,7 +70,7 @@ class ProfileApi(remote.Service):
             raise endpoints.UnauthorizedException('Authorization required')
 
         # get Profile from datastore
-        user_id = getUserId(user)
+        user_id = get_user_id(user)
         p_key = ndb.Key(Profile, user_id)
         profile = p_key.get()
         # create new Profile if not there
