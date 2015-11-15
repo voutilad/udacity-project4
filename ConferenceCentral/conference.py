@@ -293,11 +293,9 @@ class ConferenceApi(remote.Service):
         :param request:
         :return:
         """
+        key = self.FEATURED_KEY.format(conf_key=request.websafeConferenceKey)
 
-        return StringMessage(
-            data=memcache.get(self.FEATURED_KEY.format(
-                conf_key=request.websafeConferenceKey)) or ''
-        )
+        return StringMessage(data=memcache.Client().get(key) or '')
 
     # --- Registration ---
 
@@ -342,7 +340,7 @@ class ConferenceApi(remote.Service):
 
         client = memcache.Client()
 
-        return StringMessage(data=client.gets(MEMCACHE_ANNOUNCEMENTS_KEY) or '')
+        return StringMessage(data=client.get(MEMCACHE_ANNOUNCEMENTS_KEY) or '')
 
     @endpoints.method(VoidMessage, ConferenceForms,
                       path='conferences/filterPlayground',
@@ -393,7 +391,7 @@ class ConferenceApi(remote.Service):
             # format announcement and set it in memcache
             announcement = ANNOUNCEMENT_TPL % (
                 ', '.join(conf.name for conf in confs))
-            client.cas(MEMCACHE_ANNOUNCEMENTS_KEY, announcement)
+            client.add(MEMCACHE_ANNOUNCEMENTS_KEY, announcement)
         else:
             # If there are no sold out conferences,
             # delete the memcache announcements entry

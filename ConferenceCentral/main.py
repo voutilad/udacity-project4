@@ -90,7 +90,7 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
 
         print 'Setting announcement (%s) with key (%s)' % (s, m_key)
 
-        memcache.Client().cas(m_key, s)
+        memcache.Client().add(m_key, s)
 
         return s
 
