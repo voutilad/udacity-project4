@@ -198,8 +198,6 @@ class ConferenceApi(remote.Service):
                     request.websafeConferenceKey
             raise endpoints.NotFoundException(error)
 
-        # s_keys = [ndb.Key(urlsafe=sessionKey) for sessionKey in
-        #          wishlist.sessionKeys]
         sessions = ndb.get_multi(wishlist.sessionKeys)
 
         return SessionForms(items=SessionApi.populate_forms(sessions))

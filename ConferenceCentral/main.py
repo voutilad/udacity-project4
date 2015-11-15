@@ -111,7 +111,7 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
                 .fetch()
             if keynotes:
                 # take the first keynote presenter and feature them
-                s_key = keynotes[0].speakerKeys[0]
+                s_key = self.get_first_speaker(keynotes)
                 self.update(conf_key, s_key.get())
             else:
                 others = Session.query(ancestor=conf_key) \
@@ -119,10 +119,20 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
                     .fetch()
                 if others:
                     # just grab the first for now...
-                    s_key = others[0].speakerKeys[0]
+                    s_key = self.get_first_speaker(others)
                     self.update(conf_key, s_key.get())
         self.response.set_status(204)
 
+    @staticmethod
+    def get_first_speaker(sessions):
+        """
+        Get the first available speaker in the given sessions
+        :param sessions:
+        :return:
+        """
+        for session in sessions:
+            if getattr(session, 'speakerKeys'):
+                return session.speakerKeys[0]
 
 APP = webapp2.WSGIApplication([
     ('/crons/set_announcement', SetAnnouncementHandler),

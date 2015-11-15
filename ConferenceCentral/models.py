@@ -150,7 +150,7 @@ class ConferenceWishlist(ndb.Model):
         """
         wf = WishlistForm()
         wf.websafeConfKey = self.conferenceKey.urlsafe()
-        wf.websafeSessionKeys = self.sessionKeys.urlsafe()
+        wf.websafeSessionKeys = [key.urlsafe() for key in self.sessionKeys]
         return wf
 
 
