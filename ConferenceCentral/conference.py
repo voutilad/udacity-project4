@@ -35,6 +35,7 @@ from models import SessionForms
 from models import StringMessage
 from profile import ProfileApi
 from settings import API
+from session import SessionApi
 from utils import get_user_id, require_oauth
 
 __author__ = 'voutilad@gmail.com (Dave Voutila)'
@@ -173,7 +174,7 @@ class ConferenceApi(remote.Service):
 
         sessions = Session.query(ancestor=conf_key)
 
-        return SessionForms(items=[s.to_form() for s in sessions])
+        return SessionForms(items=SessionApi.populate_forms(sessions))
 
     @endpoints.method(CONF_GET_REQUEST, SessionForms,
                       path='conference/{websafeConferenceKey}/wishlist',
@@ -197,11 +198,11 @@ class ConferenceApi(remote.Service):
                     request.websafeConferenceKey
             raise endpoints.NotFoundException(error)
 
-        s_keys = [ndb.Key(urlsafe=sessionKey) for sessionKey in
-                  wishlist.sessionKeys]
-        sessions = ndb.get_multi(s_keys)
+        # s_keys = [ndb.Key(urlsafe=sessionKey) for sessionKey in
+        #          wishlist.sessionKeys]
+        sessions = ndb.get_multi(wishlist.sessionKeys)
 
-        return SessionForms(items=[s.to_form for s in sessions])
+        return SessionForms(items=SessionApi.populate_forms(sessions))
 
     @endpoints.method(ConferenceQueryForms, ConferenceForms,
                       path='conferences/query',

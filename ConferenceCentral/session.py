@@ -132,7 +132,7 @@ class SessionApi(remote.Service):
         ))
 
         sessions = queryutil.query(query_form)
-        return SessionForms(items=self._populate_forms(sessions))
+        return SessionForms(items=self.populate_forms(sessions))
 
     @endpoints.method(queryutil.QueryForm, SessionForms, path='sessions/query',
                       http_method='POST', name='querySessions')
@@ -144,7 +144,7 @@ class SessionApi(remote.Service):
         """
 
         sessions = queryutil.query(request)
-        return SessionForms(items=self._populate_forms(sessions))
+        return SessionForms(items=self.populate_forms(sessions))
 
     @endpoints.method(SessionTypeQueryForm, SessionForms,
                       path='sessions/filter/type',
@@ -165,7 +165,7 @@ class SessionApi(remote.Service):
         sessions = Session.query(ancestor=c_key) \
             .filter(Session.typeOfSession == request.typeOfSession)
 
-        return SessionForms(items=self._populate_forms(sessions))
+        return SessionForms(items=self.populate_forms(sessions))
 
     @endpoints.method(SpeakerQueryForm, SessionForms,
                       path='sessions/filter/speaker',
@@ -196,7 +196,7 @@ class SessionApi(remote.Service):
                 if sessions:
                     all_sessions += sessions
 
-        return SessionForms(items=self._populate_forms(all_sessions))
+        return SessionForms(items=self.populate_forms(all_sessions))
 
     @endpoints.method(SessionForm, SessionForm, path='session',
                       http_method='POST', name='create')
@@ -301,10 +301,9 @@ class SessionApi(remote.Service):
         :return: BooleanMessage - True if successful, False if failure
         """
         prof = ProfileApi.profile_from_user()  # get user Profile
-        session = get_from_webkey(
-            request.websafeSessionKey)  # get session to wishlist
+        session = get_from_webkey(request.websafeSessionKey)  # get session
 
-        if not session:
+        if not session or not isinstance(session, Session):
             raise endpoints.NotFoundException('Not a valid session')
 
         # see if the wishlist exists
@@ -486,7 +485,7 @@ class SessionApi(remote.Service):
         return speaker
 
     @staticmethod
-    def _populate_forms(sessions):
+    def populate_forms(sessions):
         """
         Since I separated out Speakers from Sessions, need to fetch those back
         onto Sesssions

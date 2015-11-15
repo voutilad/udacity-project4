@@ -153,17 +153,18 @@ def __get_kind(enum):
     """
     Get the proper entity kind given the QueryTarget enum
     :param enum: QueryTarget to resolve
-    :return: reference to the proper kind class e.g. Conference, Session, Profile, etc.
+    :return: reference to the proper kind class e.g. Conference, Session,
+    Profile, etc.
     """
     if not isinstance(enum, QueryTarget):
         raise TypeError(
             'expected %s, but got %s' % (type(QueryTarget), type(enum)))
 
-    if enum.name == 'CONFERENCE':
+    if enum == enum.CONFERENCE:
         return Conference
-    elif enum.name == 'SESSION':
+    elif enum == enum.SESSION:
         return Session
-    elif enum.name == 'PROFILE':
+    elif enum == enum.PROFILE:
         return Profile
 
 
@@ -174,7 +175,7 @@ def __get_field(kind, field):
     :param field: string of field to get
     :return: valid string name of a kind's field, otherwise raises an exception
     """
-    if FIELD_MAP.has_key(kind):
+    if kind in FIELD_MAP:
         field_map = FIELD_MAP.get(kind)
         return field_map.get(field, None)
     else:
@@ -185,8 +186,9 @@ def __format_filters(query_filters, kind):
     """
     Parse, check validity and format user supplied filters.
     :param query_filters: list of QueryFilters to process
-    :param filters: entity kind the query is targeting
-    :return: tuple of (processed inequality filter, formatted filters (as list of dicts))
+    :param kind: entity kind the query is targeting
+    :return: tuple of (processed inequality filter, formatted filters (as list
+    of dicts))
     """
     if not isinstance(query_filters, FieldList):
         raise TypeError(
@@ -211,21 +213,27 @@ def __format_filters(query_filters, kind):
         # Every operation except "=" is an inequality
         if filtr["operator"] != "=":
             # TODO: handle operator of != on a finite field aka our enum fields!
-            # Remember that you need to do ndb.query.FilterNode('typeOfSession', 'in', [1, 2])
+            # Remember that you need to do
+            # ndb.query.FilterNode('typeOfSession', 'in', [1, 2])
 
             # check if inequality operation has been used in previous filters
-            # disallow the filter if inequality was performed on a different field before
-            # track the field on which the inequality operation is performed
-            if isinstance(getattr(kind, filtr['field']), msgprop.EnumProperty):
+            # disallow the filter if inequality was performed on a different
+            # field before track the field on which the inequality operation
+            # is performed
+            if isinstance(getattr(kind, str(filtr['field'])),
+                          msgprop.EnumProperty):
                 # we need to convert these to 'in' query filters
                 filtr['operator'] = 'in'
 
-                # get dict representation of the Enum, delete the key we want to exclude
+                # get dict representation of the Enum, delete the key we want
+                # to exclude
                 # TODO: This is super hacky...gotta be a better way.
-                enum_dict = getattr(kind, filtr['field'])._enum_type.to_dict()
+                enum_dict = getattr(kind, str(filtr['field'])).\
+                    _enum_type.to_dict()
                 del enum_dict[filtr['value']]
 
-                # build the filter values (ints) since our FilterNode needs to use the underlying ints
+                # build the filter values (ints) since our FilterNode needs to
+                # use the underlying ints
                 filtr['value'] = enum_dict.values()
             else:
                 if inequality_field and inequality_field != filtr['field']:
@@ -238,16 +246,19 @@ def __format_filters(query_filters, kind):
     return inequality_field, formatted_filters
 
 
-def __parse_time(time, format):
+def __parse_time(time_string, time_format):
     """
-    Parses a time string in HH:MM format and properly sets the year to the epoch date of 1970
+    Parses a time string in HH:MM format and properly sets the year to the
+    epoch date of 1970
 
-    This gets around an issue where a raw datetime.time gets turned into a datetime.date by
+    This gets around an issue where a raw datetime.time gets turned into a
+    datetime.date by
     GAE with a date set to 1-1-1900 instead of 1-1-1970
-    :param date_string: string with raw date
+    :param time_string: string with raw date
+    :param time_format: string with the time format to use for parsing
     :return: datetime.time
     """
     return datetime.combine(
         datetime.utcfromtimestamp(0),
-        datetime.strptime(time, format).time()
+        datetime.strptime(time_string, time_format).time()
     )
