@@ -8,8 +8,8 @@ profile.py -- Udacity conference server-side Python App Engine API;
 
 import endpoints
 from google.appengine.ext import ndb
-from protorpc.message_types import VoidMessage
 from protorpc import remote
+from protorpc.message_types import VoidMessage
 
 from models import Profile
 from models import ProfileForm
@@ -24,6 +24,7 @@ __author__ = 'voutilad@gmail.com (Dave Voutila)'
 @API.api_class(resource_name='profiles')
 class ProfileApi(remote.Service):
     """Profile API"""
+
     #
     # - - - Endpoints - - - - - - - - - - - - - - - - - - -
     #

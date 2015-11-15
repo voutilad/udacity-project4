@@ -12,21 +12,23 @@ modified by voutilad@gmail.com for Udacity FullStackDev Project 4
 
 """
 
-import webapp2
 import endpoints
-from google.appengine.api import memcache
+import webapp2
 from google.appengine.api import app_identity
 from google.appengine.api import mail
+from google.appengine.api import memcache
 from google.appengine.ext import ndb
-from session import SessionApi
+
 from conference import ConferenceApi
-from profile import ProfileApi
 from models import Session, SessionType
+from profile import ProfileApi
+from session import SessionApi
 
 # - - - Endpoints Client Api - - -
 
 
-API_SERVER = endpoints.api_server([ConferenceApi, SessionApi, ProfileApi])  # register API
+API_SERVER = endpoints.api_server(
+    [ConferenceApi, SessionApi, ProfileApi])  # register API
 
 
 # - - - Backend Api - - -
@@ -50,6 +52,7 @@ class SendConfirmationEmailHandler(webapp2.RequestHandler):
     """
     Handles Email confirmation tasks
     """
+
     def post(self):
         """
         Send email confirming Conference creation.
@@ -70,6 +73,7 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
     """
     Pick a Featured Speaker for a Conference when Sessions are created/changed
     """
+
     @staticmethod
     def update(conf_key, speaker):
         """
@@ -102,16 +106,16 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
         else:
             # do it
             conf_key = ndb.Key(urlsafe=wsck)
-            keynotes = Session.query(ancestor=conf_key)\
-                .filter(Session.typeOfSession == SessionType.KEYNOTE)\
+            keynotes = Session.query(ancestor=conf_key) \
+                .filter(Session.typeOfSession == SessionType.KEYNOTE) \
                 .fetch()
             if keynotes:
                 # take the first keynote presenter and feature them
                 s_key = keynotes[0].speakerKeys[0]
                 self.update(conf_key, s_key.get())
             else:
-                others = Session.query(ancestor=conf_key)\
-                    .filter(Session.typeOfSession != SessionType.KEYNOTE)\
+                others = Session.query(ancestor=conf_key) \
+                    .filter(Session.typeOfSession != SessionType.KEYNOTE) \
                     .fetch()
                 if others:
                     # just grab the first for now...

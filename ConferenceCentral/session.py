@@ -9,24 +9,24 @@ session.py -- ConferenceCentral Session methods;
 import endpoints
 from google.appengine.api import taskqueue
 from google.appengine.ext import ndb
-from protorpc.message_types import VoidMessage
 from protorpc import messages
 from protorpc import remote
+from protorpc.message_types import VoidMessage
 
+import queryutil
 from models import BooleanMessage
 from models import ConferenceWishlist
 from models import Session
 from models import SessionForm
 from models import SessionForms
-from models import SessionTypeQueryForm, SpeakerQueryForm
 from models import SessionType
+from models import SessionTypeQueryForm, SpeakerQueryForm
 from models import Speaker
 from models import SpeakerForm
 from models import WishlistForms
-from settings import API
 from profile import ProfileApi
+from settings import API
 from utils import get_user_id, get_from_webkey, require_oauth
-import queryutil
 
 __author__ = 'voutilad@gmail.com (Dave Voutila)'
 
@@ -60,15 +60,17 @@ class SessionApi(remote.Service):
         /session/* - operates on or returns a single Session record
         /sessions/* - operates on or returns multiple Session records
     """
+
     #
     # - - - Endpoints - - - - - - - - - - - - - - - - - - -
     #
 
     # - - - WishListing - - - - - - - - - - - - - - - - - - -
-    @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='wishlist/{websafeSessionKey}',
+    @endpoints.method(WISHLIST_REQUEST, BooleanMessage,
+                      path='wishlist/{websafeSessionKey}',
                       http_method='PUT', name='addSessionToWishlist')
     @require_oauth
-    def addSessionToWishlist(self, request):
+    def add_to_wishlist(self, request):
         """
         Add a Session to a ConferenceWishlist
         :param request:
@@ -76,10 +78,11 @@ class SessionApi(remote.Service):
         """
         return self._wishlist(request, True)
 
-    @endpoints.method(WISHLIST_REQUEST, BooleanMessage, path='wishlist/{websafeSessionKey}',
+    @endpoints.method(WISHLIST_REQUEST, BooleanMessage,
+                      path='wishlist/{websafeSessionKey}',
                       http_method='DELETE', name='removeSessionFromWishlist')
     @require_oauth
-    def removeSessionFromWishlist(self, request):
+    def remove_from_wishlist(self, request):
         """
         Remove a Session from a ConferenceWishlist
         :param request:
@@ -95,9 +98,12 @@ class SessionApi(remote.Service):
         :param request:
         :return:
         """
-        # TODO: add max records and sortability
+        if not isinstance(request, VoidMessage):
+            raise endpoints.BadRequestException()
+
         prof = ProfileApi.profile_from_user()  # get user Profile
         wishlists = ConferenceWishlist.query(ancestor=prof.key).fetch()
+
         return WishlistForms(
             items=[wishlist.to_form() for wishlist in wishlists]
         )
@@ -110,6 +116,9 @@ class SessionApi(remote.Service):
         :param request:
         :return:
         """
+        if not isinstance(request, VoidMessage):
+            raise endpoints.BadRequestException()
+
         query_form = queryutil.QueryForm(target=queryutil.QueryTarget.SESSION)
         query_form.filters.append(queryutil.QueryFilter(
             field='TYPE',
@@ -137,30 +146,34 @@ class SessionApi(remote.Service):
         sessions = queryutil.query(request)
         return SessionForms(items=self._populate_forms(sessions))
 
-    @endpoints.method(SessionTypeQueryForm, SessionForms, path='sessions/filter/type',
+    @endpoints.method(SessionTypeQueryForm, SessionForms,
+                      path='sessions/filter/type',
                       http_method='GET', name='getConferenceSessionsByType')
     def get_by_type(self, request):
         """
-        Given a conference, return all sessions of a specified type (eg lecture, keynote, workshop)
+        Given a conference, return all sessions of a specified type (eg lecture,
+         keynote, workshop)
         :param request:
         :return:
         """
         wsck = request.websafeConfKey
         c_key = ndb.Key(urlsafe=wsck)
         if not c_key.get():
-            raise endpoints.NotFoundException('No conference found with key: %s' % wsck)
+            raise endpoints.NotFoundException(
+                'No conference found with key: %s' % wsck)
 
         sessions = Session.query(ancestor=c_key) \
             .filter(Session.typeOfSession == request.typeOfSession)
 
-
         return SessionForms(items=self._populate_forms(sessions))
 
-    @endpoints.method(SpeakerQueryForm, SessionForms, path='sessions/filter/speaker',
+    @endpoints.method(SpeakerQueryForm, SessionForms,
+                      path='sessions/filter/speaker',
                       http_method='GET', name='getBySpeaker')
     def get_by_speaker(self, request):
         """
-        Given a speaker, return all sessions given by this particular speaker, across all conferences
+        Given a speaker, return all sessions given by this particular speaker,
+        across all conferences
         :param request:
         :return:
         """
@@ -170,7 +183,7 @@ class SessionApi(remote.Service):
         elif not request.name and request.title:
             speakers = Speaker.query(Speaker.title == request.title)
         else:
-            speakers = Speaker.query(Speaker.name == request.name)\
+            speakers = Speaker.query(Speaker.name == request.name) \
                 .filter(Speaker.title == request.title)
 
         speakers.fetch()
@@ -178,7 +191,8 @@ class SessionApi(remote.Service):
         all_sessions = []
         if speakers:
             for speaker in speakers:
-                sessions = Session.query(Session.speakerKeys == speaker.key).fetch()
+                sessions = Session.query(
+                    Session.speakerKeys == speaker.key).fetch()
                 if sessions:
                     all_sessions += sessions
 
@@ -217,7 +231,8 @@ class SessionApi(remote.Service):
 
         return request
 
-    @endpoints.method(SESSION_PUT_REQUEST, SessionForm, path='session/{websafeSessionKey}',
+    @endpoints.method(SESSION_PUT_REQUEST, SessionForm,
+                      path='session/{websafeSessionKey}',
                       http_method='PUT', name='update')
     @require_oauth
     def update(self, request):
@@ -229,7 +244,8 @@ class SessionApi(remote.Service):
         old_session = ndb.Key(urlsafe=request.websafeSessionKey).get()
 
         if not old_session:
-            raise endpoints.NotFoundException('No session found for key: %s' % request.websafeKey)
+            raise endpoints.NotFoundException(
+                'No session found for key: %s' % request.websafeKey)
 
         new_form = SessionForm(websafeKey=request.websafeSessionKey)
         for field in request.all_fields():
@@ -237,10 +253,12 @@ class SessionApi(remote.Service):
                 setattr(new_form, field.name, getattr(request, field.name))
 
         # deal with Speaker creation/updating
-        new_speakers = [self.__prepare_speaker(form) for form in new_form.speakers]
+        new_speakers = [self.__prepare_speaker(form) for form in
+                        new_form.speakers]
 
         # the transaction
-        response = self._update(old_session, new_form, speakers=new_speakers).to_form()
+        response = self._update(old_session, new_form,
+                                speakers=new_speakers).to_form()
 
         # Add a task to the queue for getting featured speaker changes
         taskqueue.add(params={'conf_key': request.websafeConfKey},
@@ -248,7 +266,8 @@ class SessionApi(remote.Service):
 
         return response
 
-    @endpoints.method(SESSION_PUT_REQUEST, BooleanMessage, path='session/{websafeSessionKey}',
+    @endpoints.method(SESSION_PUT_REQUEST, BooleanMessage,
+                      path='session/{websafeSessionKey}',
                       http_method='DELETE', name='delete')
     @require_oauth
     def delete(self, request):
@@ -273,13 +292,17 @@ class SessionApi(remote.Service):
     @ndb.transactional(xg=True)
     def _wishlist(self, request, add=True):
         """
-        Transaction to add or remove Session from a ConferenceWishlist given by a WishlistRequest
-        :param request: Wishlist RPC Request [VoidMessage, session key in query string]
-        :param add: whether to add (True) to the wishlist or remove from a wishlist (False)
+        Transaction to add or remove Session from a ConferenceWishlist given by
+         a WishlistRequest
+        :param request: Wishlist RPC Request [VoidMessage, session key in query
+         string]
+        :param add: whether to add (True) to the wishlist or remove from a
+        wishlist (False)
         :return: BooleanMessage - True if successful, False if failure
         """
         prof = ProfileApi.profile_from_user()  # get user Profile
-        session = get_from_webkey(request.websafeSessionKey)  # get session to wishlist
+        session = get_from_webkey(
+            request.websafeSessionKey)  # get session to wishlist
 
         if not session:
             raise endpoints.NotFoundException('Not a valid session')
@@ -294,10 +317,12 @@ class SessionApi(remote.Service):
             if add:
                 # need to create the wishlist first
                 conf_key = session.key.parent()
-                wishlist = ConferenceWishlist(conferenceKey=conf_key, parent=prof.key)
+                wishlist = ConferenceWishlist(conferenceKey=conf_key,
+                                              parent=prof.key)
             else:
                 # remove request, but no wishlist!
-                raise endpoints.NotFoundException('Nothing wishlisted for Conference')
+                raise endpoints.NotFoundException(
+                    'Nothing wishlisted for Conference')
 
         # update wishlist by adding/removing session key
         s_key = session.key
@@ -308,7 +333,8 @@ class SessionApi(remote.Service):
                 wishlist.put()
             else:
                 # can't remove a nonexistant key
-                raise endpoints.NotFoundException('Session not in wishlist for Conference')
+                raise endpoints.NotFoundException(
+                    'Session not in wishlist for Conference')
         else:
             # key already exists
             if add:
@@ -329,23 +355,28 @@ class SessionApi(remote.Service):
     @ndb.transactional(xg=True)
     def _delete(self, session, speakers=None):
         """
-        Delete a session and clean up Speakers, decrementing or removing if needed.
+        Delete a session and clean up Speakers, decrementing or removing if
+        needed.
         :param session:
         :param speakers:
         :return: True on success, False on failure
         """
-        if speakers:
-            for speaker in speakers:
-                speaker.numSessions -= 1
+        try:
+            if speakers:
+                for speaker in speakers:
+                    speaker.numSessions -= 1
 
-                if speaker.numSessions < 1:
-                    speaker.key.delete()
-                else:
-                    speaker.put()
+                    if speaker.numSessions < 1:
+                        speaker.key.delete()
+                    else:
+                        speaker.put()
 
-        session.key.delete()
+            session.key.delete()
+            return True
+        except ndb.datastore_errors.Error:
+            print '!!! error deleting session'
 
-        return True
+        return False
 
     @ndb.transactional(xg=True)
     def _create(self, session, speakers=None):
@@ -355,12 +386,19 @@ class SessionApi(remote.Service):
         :param speakers: Speaker
         :return: Session Key
         """
-        if speakers:
-            for speaker in speakers:
-                session.speakerKeys.append(speaker.put())
-        return session.put()
+        try:
+            if speakers:
+                for speaker in speakers:
+                    session.speakerKeys.append(speaker.put())
+            return session.put()
 
-    def __prep_new_session(self, session_form):
+        except ndb.datastore_errors.Error:
+            print '!!! failed to create Session'
+
+        return None
+
+    @staticmethod
+    def __prep_new_session(session_form):
         """
         Prepare a new Session instance, validating Conference and User details
         :param session_form:
@@ -387,7 +425,8 @@ class SessionApi(remote.Service):
 
         # check that user is conference owner
         if user_id != conf.organizerUserId:
-            raise endpoints.ForbiddenException('Only the conference owner can create sessions.')
+            raise endpoints.ForbiddenException(
+                'Only the conference owner can create sessions.')
 
         # create Session and set up the parent key
         return Session.from_form(session_form)
@@ -402,7 +441,7 @@ class SessionApi(remote.Service):
         """
         new_session = Session.from_form(session_form)
 
-        # deal with decrementing the old ones that aren't on this session anymore
+        # deal with decrementing the old ones that aren't on the session anymore
         new_keys = [speaker.key for speaker in speakers]
         for old_key in old_session.speakerKeys:
             if old_key not in new_keys:
@@ -418,23 +457,25 @@ class SessionApi(remote.Service):
         for speaker in speakers:
             new_session.speakerKeys.append(speaker.put())
 
-        # since session key's use the session name, we need to delete the old record
+        # since session key's use the session name, need to delete the old one
         old_session.key.delete()
         new_session.put()
 
         return new_session
 
-    def __prepare_speaker(self, speaker_form):
+    @staticmethod
+    def __prepare_speaker(speaker_form):
         """
         Handle updating Speaker records and their session counts
         :param speaker_form: SpeakerForm
         :return: Speaker with updates ready to be put()
         """
         if not isinstance(speaker_form, SpeakerForm):
-            raise TypeError('expected %s, but got %s' % (SpeakerForm, speaker_form))
+            raise TypeError(
+                'expected %s, but got %s' % (SpeakerForm, speaker_form))
 
-        speaker = Speaker.query(Speaker.name == speaker_form.name)\
-            .filter(Speaker.title == speaker_form.title)\
+        speaker = Speaker.query(Speaker.name == speaker_form.name) \
+            .filter(Speaker.title == speaker_form.title) \
             .get()
         if speaker:
             speaker.numSessions += 1
@@ -447,7 +488,8 @@ class SessionApi(remote.Service):
     @staticmethod
     def _populate_forms(sessions):
         """
-        Since I separated out Speakers from Sessions, need to fetch those back onto Sesssions
+        Since I separated out Speakers from Sessions, need to fetch those back
+        onto Sesssions
         when creating forms.
         :param sessions:
         :return:

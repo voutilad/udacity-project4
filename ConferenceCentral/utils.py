@@ -10,6 +10,7 @@ import uuid
 import endpoints
 from google.appengine.api import urlfetch
 from google.appengine.ext import ndb
+
 from models import Conference
 
 
@@ -57,6 +58,7 @@ def get_user_id(user, id_type="email"):
         else:
             return str(uuid.uuid1().get_hex())
 
+
 # --- Added by Dave Voutila <voutilad@gmail.com>
 
 
@@ -66,20 +68,23 @@ def require_oauth(func):
     :param func: wrapping func
     :return:
     """
+
     def func_wrapper(*args, **kwargs):
         if not endpoints.get_current_user():
             raise endpoints.UnauthorizedException('Authorization required')
-        func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return func_wrapper
 
 
 def get_from_webkey(websafe_key, model=None):
     """
-    Fetches the key for a given model by the provided websafeKey value while validating an instance of the model exists.
+    Fetches the key for a given model by the provided websafeKey value while
+    validating an instance of the model exists.
 
     :param websafe_key: web-safe string key of model instance to lookup
-    :param model: (optional) ndb.Model type (e.g. Conference) to validate against instance
+    :param model: (optional) ndb.Model type (e.g. Conference) to validate
+    against instance
     :return: ndb.Key()
     """
     try:
@@ -94,7 +99,9 @@ def get_from_webkey(websafe_key, model=None):
         raise endpoints.NotFoundException(err)
 
     if model and type(model) != type(obj):
-        err = 'Instance is {got} instead of {expected}'.format(got=type(obj), expected=type(model))
+        err = 'Instance is {got} instead of {expected}'.format(got=type(obj),
+                                                               expected=type(
+                                                                   model))
         raise endpoints.NotFoundException(err)
 
     return obj

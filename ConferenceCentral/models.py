@@ -53,7 +53,9 @@ class Profile(ndb.Model):
         pf = ProfileForm()
         pf.displayName = self.displayName
         pf.mainEmail = self.mainEmail
-        pf.conferenceKeysToAttend = [key.urlsafe() for key in self.conferencesToAttend]
+        pf.conferenceKeysToAttend = [
+            key.urlsafe() for key in self.conferencesToAttend
+            ]
         pf.teeShirtSize = TeeShirtSize.lookup_by_name(self.teeShirtSize)
 
         return pf
@@ -136,7 +138,8 @@ class ConferenceForms(messages.Message):
 
 
 class ConferenceWishlist(ndb.Model):
-    """ConferenceWishlist --- maintains list of keys of favorite sessions for a given conference"""
+    """ConferenceWishlist --- maintains list of keys of favorite sessions for
+    a given conference"""
     conferenceKey = ndb.KeyProperty(kind='Conference', required=True)
     sessionKeys = ndb.KeyProperty(kind='Session', repeated=True)
 
@@ -158,7 +161,8 @@ class WishlistForm(messages.Message):
 
 
 class WishlistForms(messages.Message):
-    """WishlistForms -- RPC message containing multiple WishlistForm's for response"""
+    """WishlistForms -- RPC message containing multiple WishlistForm's for
+    response"""
     items = messages.MessageField(WishlistForm, 1, repeated=True)
 
 
@@ -182,7 +186,8 @@ class Speaker(ndb.Model):
         """ Converts Speaker to SpeakerForm messages
         :return: SpeakerForm
         """
-        return SpeakerForm(name=self.name, title=self.title, numSessions=self.numSessions)
+        return SpeakerForm(name=self.name, title=self.title,
+                           numSessions=self.numSessions)
 
     @staticmethod
     def from_form(form):
@@ -212,7 +217,8 @@ class Session(ndb.Model):
     highlights = ndb.StringProperty(repeated=True)
     speakerKeys = ndb.KeyProperty(kind='Speaker', repeated=True, indexed=True)
     duration = ndb.IntegerProperty()
-    typeOfSession = msgprop.EnumProperty(SessionType, required=True, indexed=True)
+    typeOfSession = msgprop.EnumProperty(SessionType, required=True,
+                                         indexed=True)
     date = ndb.DateProperty()
     startTime = ndb.TimeProperty()
     conferenceKey = ndb.KeyProperty(kind='Conference')
@@ -220,6 +226,7 @@ class Session(ndb.Model):
     def to_form(self, speaker_forms=None):
         """
         Create the corresponding SessionForm RPC message
+        :param speaker_forms:
         :return: SessionForm
         """
         sf = SessionForm()
@@ -271,6 +278,7 @@ class Session(ndb.Model):
 
         return s
 
+
 class SessionForm(messages.Message):
     """SessionForm -- RPC message containing details about a Session"""
     name = messages.StringField(1)
@@ -315,10 +323,12 @@ class SpeakerQueryForm(messages.Message):
     name = messages.StringField(1)
     title = messages.StringField(2)
 
+
 class SessionTypeQueryForm(messages.Message):
     """SessionQueryForm -- Session query inbound form message"""
     websafeConfKey = messages.StringField(1)
     typeOfSession = messages.EnumField('SessionType', 2)
+
 
 class ConferenceQueryForm(messages.Message):
     """ConferenceQueryForm -- Conference query inbound form message"""
@@ -328,5 +338,6 @@ class ConferenceQueryForm(messages.Message):
 
 
 class ConferenceQueryForms(messages.Message):
-    """ConferenceQueryForms -- multiple ConferenceQueryForm inbound form message"""
+    """ConferenceQueryForms -- multiple ConferenceQueryForm inbound form
+    message"""
     filters = messages.MessageField(ConferenceQueryForm, 1, repeated=True)
