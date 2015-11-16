@@ -247,24 +247,30 @@ class SessionApi(remote.Service):
             raise endpoints.NotFoundException(
                 'No session found for key: %s' % request.websafeKey)
 
-        new_form = SessionForm(websafeKey=request.websafeSessionKey)
+        if not isinstance(old_session, Session):
+            raise TypeError('key provided is not for a Session')
+
+        new_form = old_session.to_form()
+
         for field in request.all_fields():
             if field.name != 'websafeSessionKey':
-                setattr(new_form, field.name, getattr(request, field.name))
+                attr = getattr(request, field.name)
+                if attr:
+                    setattr(new_form, field.name, attr)
 
         # deal with Speaker creation/updating
         new_speakers = [self.__prepare_speaker(form) for form in
                         new_form.speakers]
 
         # the transaction
-        response = self._update(old_session, new_form,
-                                speakers=new_speakers).to_form()
+        session = self._update(old_session, new_form,
+                               speakers=new_speakers)
 
         # Add a task to the queue for getting featured speaker changes
-        taskqueue.add(params={'conf_key': request.websafeConfKey},
+        taskqueue.add(params={'conf_key': session.conferenceKey.urlsafe()},
                       url='/tasks/update_featured_speaker')
 
-        return response
+        return self.populate_form(session)
 
     @endpoints.method(SESSION_PUT_REQUEST, BooleanMessage,
                       path='session/{websafeSessionKey}',
@@ -436,8 +442,12 @@ class SessionApi(remote.Service):
         Update an existing Session using the new SessionForm message
         :param old_session: old Session instance
         :param session_form: SessionForm with updates
+        :param speakers:
         :return: updated Session
         """
+        if not isinstance(old_session, Session):
+            raise TypeError('expecting %s but got %s' % (Session, old_session))
+
         new_session = Session.from_form(session_form)
 
         # deal with decrementing the old ones that aren't on the session anymore
@@ -485,6 +495,16 @@ class SessionApi(remote.Service):
         return speaker
 
     @staticmethod
+    def populate_form(session):
+        """
+        Populate a new SessionForm from a Session, resolving Speakers
+        :param session:
+        :return:
+        """
+        speakers = ndb.get_multi(session.speakerKeys)
+        return session.to_form([speaker.to_form() for speaker in speakers])
+
+    @staticmethod
     def populate_forms(sessions):
         """
         Since I separated out Speakers from Sessions, need to fetch those back
@@ -496,8 +516,7 @@ class SessionApi(remote.Service):
         session_forms = []
 
         for session in sessions:
-            speakers = ndb.get_multi(session.speakerKeys)
-            form = session.to_form([speaker.to_form() for speaker in speakers])
+            form = SessionApi.populate_form(session)
             session_forms.append(form)
 
         return session_forms

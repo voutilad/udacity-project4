@@ -112,7 +112,8 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
             if keynotes:
                 # take the first keynote presenter and feature them
                 s_key = self.get_first_speaker(keynotes)
-                self.update(conf_key, s_key.get())
+                if s_key:
+                    self.update(conf_key, s_key.get())
             else:
                 others = Session.query(ancestor=conf_key) \
                     .filter(Session.typeOfSession != SessionType.KEYNOTE) \
@@ -120,7 +121,9 @@ class FeaturedSpeakersHandler(webapp2.RequestHandler):
                 if others:
                     # just grab the first for now...
                     s_key = self.get_first_speaker(others)
-                    self.update(conf_key, s_key.get())
+                    if s_key:
+                        self.update(conf_key, s_key.get())
+
         self.response.set_status(204)
 
     @staticmethod

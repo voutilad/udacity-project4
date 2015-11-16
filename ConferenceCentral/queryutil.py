@@ -103,7 +103,7 @@ def query(query_form, ancestor=None):
     inequality_filter, filters = __format_filters(query_form.filters, kind)
 
     # If exists, sort on inequality filter first
-    q = kind.query(ancestor=ancestor)
+    q = kind(parent=ancestor).query(ancestor=ancestor)
     if not inequality_filter:
         q = q.order(SORT_MAP[kind])
     else:

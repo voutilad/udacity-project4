@@ -233,10 +233,10 @@ class Session(ndb.Model):
         for field in sf.all_fields():
             if hasattr(self, field.name):
                 # matching/common fields between classes
-                if field.name == 'date':
-                    sf.date = str(self.date)
-                elif field.name == 'startTime':
-                    sf.startTime = str(self.startTime)
+                if field.name == 'date' and self.date:
+                    sf.date = self.date.strftime('%Y-%m-%d')
+                elif field.name == 'startTime' and self.startTime:
+                    sf.startTime = self.startTime.strftime('%H:%M')
                 else:
                     setattr(sf, field.name, getattr(self, field.name))
             elif field.name == 'websafeConfKey':
@@ -260,13 +260,17 @@ class Session(ndb.Model):
         if not isinstance(form, SessionForm):
             raise TypeError('Expected %s but got %s' % (SessionForm, form))
 
-        wsck = ndb.Key(urlsafe=form.websafeConfKey)
+        if form.websafeConfKey:
+            conf_key = ndb.Key(urlsafe=form.websafeConfKey)
+        else:
+            conf_key = None
 
         s = Session(name=form.name,
                     highlights=form.highlights,
                     duration=form.duration,
                     typeOfSession=form.typeOfSession,
-                    conferenceKey=wsck
+                    conferenceKey=conf_key,
+                    parent=conf_key
                     )
 
         if form.startTime:
@@ -274,7 +278,7 @@ class Session(ndb.Model):
         if form.date:
             s.date = datetime.strptime(form.date[:10], '%Y-%m-%d').date()
 
-        s.key = ndb.Key(Session, s.name, parent=wsck)
+        s.key = ndb.Key(Session, s.name, parent=conf_key)
 
         return s
 
