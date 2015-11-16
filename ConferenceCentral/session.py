@@ -241,6 +241,7 @@ class SessionApi(remote.Service):
         :param request: SESSION_GET_REQUEST
         :return: SessionForm
         """
+        # first look up current (old) Session and sanity check it
         old_session = ndb.Key(urlsafe=request.websafeSessionKey).get()
 
         if not old_session:
@@ -250,7 +251,8 @@ class SessionApi(remote.Service):
         if not isinstance(old_session, Session):
             raise TypeError('key provided is not for a Session')
 
-        new_form = old_session.to_form()
+        # need to populate the new form making sure to get speakers
+        new_form = self.populate_form(old_session)
 
         for field in request.all_fields():
             if field.name != 'websafeSessionKey':
