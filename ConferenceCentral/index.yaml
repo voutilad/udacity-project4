@@ -102,6 +102,11 @@ indexes:
 
 - kind: Session
   properties:
+  - name: highlights
+  - name: startTime
+
+- kind: Session
+  properties:
   - name: sessionType
   - name: startTime
 
@@ -113,4 +118,15 @@ indexes:
 - kind: Session
   ancestor: yes
   properties:
+  - name: startTime
+
+- kind: Session
+  ancestor: yes
+  properties:
   - name: typeOfSession
+
+- kind: Session
+  ancestor: yes
+  properties:
+  - name: typeOfSession
+  - name: startTime

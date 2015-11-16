@@ -142,8 +142,12 @@ class SessionApi(remote.Service):
         :param request:
         :return:
         """
+        ancestor = None
+        if request.ancestorWebSafeKey:
+            ancestor = ndb.Key(urlsafe=request.ancestorWebSafeKey)
 
-        sessions = queryutil.query(request)
+        sessions = queryutil.query(request, ancestor=ancestor)
+
         return SessionForms(items=self.populate_forms(sessions))
 
     @endpoints.method(SessionTypeQueryForm, SessionForms,

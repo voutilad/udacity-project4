@@ -79,6 +79,36 @@ class QueryForm(messages.Message):
     ancestorWebSafeKey = messages.StringField(5)
 ```
 
+Configuring the different model fields is now based on an enhanced mapping
+similar to the original one from the basic ConferenceCentral app:
+
+``` python
+# Lookup map for finding queriable field names for different entity kinds
+FIELD_MAP = {
+    # Kind : Fieldmap
+    Conference: {
+        # client field name : ndb model name
+        'CITY': 'city',
+        'TOPIC': 'topics',
+        'MONTH': 'month',
+        'MAX_ATTENDEES': 'maxAttendees',
+    },
+    Profile: {
+        'SHIRT': 'teeShirtSize'
+    },
+    Session: {
+        'TYPE': 'typeOfSession',
+        'DATE': 'date',
+        'START_TIME': 'startTime',
+        'DURATION': 'duration'
+    },
+    ConferenceWishlist: {
+        'CONF_KEY': 'conferenceKeys',
+        'SESSION_KEYS': 'sessionKeys'
+    }
+}
+```
+
 ## Data Model
 The original Data Model from ConferenceCentral handled Conference and Profile
 data. As part of this project, I added Sessions, ConferenceWishlists, and

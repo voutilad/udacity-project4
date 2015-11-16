@@ -34,7 +34,8 @@ FIELD_MAP = {
         'TYPE': 'typeOfSession',
         'DATE': 'date',
         'START_TIME': 'startTime',
-        'DURATION': 'duration'
+        'DURATION': 'duration',
+        'HIGHLIGHTS': 'highlights'
     },
     ConferenceWishlist: {
         'CONF_KEY': 'conferenceKeys',
@@ -122,6 +123,7 @@ def query(query_form, ancestor=None):
                                                f['value'])
         q = q.filter(formatted_query)
 
+    print 'Built query: %s' % str(q)
     return q
 
 
