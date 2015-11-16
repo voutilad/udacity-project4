@@ -6,6 +6,21 @@ _For the original ConferenceCentral app, see [https://github.com/udacity/ud858](
 
 ---
 
+## Running the Application
+Assuming you have the Google App Engine SDK installed, running the app is as
+simple as running from the root of the project:
+
+``` bash
+dev_appserver.py ConferenceCentral
+```
+
+Once the local dev server is up and running, navigate to:
+ * [localhost:8080](http://localhost:8080) - web app client interface
+ * [localhost:8080/_ah/api/explorer](http://localhost:8080/_ah/api/explorer) -
+ API Explorer interface
+
+To stop the app, hit CTRL-C on the console and GAE should do a safe shutdown.
+
 ## Changes from original ConferenceCentral Project
 I've made numerous changes both for purposes of the project requirements as well
 as personal design preferences.
